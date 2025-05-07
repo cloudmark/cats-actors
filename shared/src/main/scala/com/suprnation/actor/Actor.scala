@@ -22,8 +22,9 @@ import cats.syntax.all._
 import cats.{Monad, MonadThrow, Parallel}
 import com.suprnation.actor.Actor.{Actor, Receive, ReplyingReceive}
 import com.suprnation.actor.ActorRef.NoSendActorRef
+import com.suprnation.actor.utils.IdGen
 
-import java.util.UUID
+//import java.util.UUID
 
 object Behaviour {
   def emptyBehavior[F[+_]: MonadThrow, Request, Response]: PartialFunction[Request, F[Response]] =
@@ -87,7 +88,7 @@ object Actor {
   def ignoring[F[+_]: Parallel: Concurrent: Temporal: Console, Request]
       : ReplyingActor[F, Request, Any] =
     withReceive(
-      Behaviour.ignoringBehaviour(UUID.randomUUID().toString)
+      Behaviour.ignoringBehaviour(IdGen.newId())
     )
 
   def withReceive[F[+_]: Parallel: Concurrent: Temporal, Request](
@@ -111,8 +112,10 @@ abstract class ReplyingActor[F[+_]: Concurrent: Parallel: Temporal, Request, Res
   // These two properties we have to set them manually
   // We do this because we do not want a Ref for the context to make the DX easier.
   // We also do not want a Ref on self to make the DX easier.
-  implicit val context: ActorContext[F, Request, Response] = null
-  val self: ReplyingActorRef[F, Request, Response] = null
+  // implicit val context: ActorContext[F, Request, Response] = null
+  // val self: ReplyingActorRef[F, Request, Response] = null
+  implicit var context: ActorContext[F, Request, Response] = null
+  var self: ReplyingActorRef[F, Request, Response] = null
   implicit def implicitSelf: Option[ReplyingActorRef[F, Request, Response]] = Option(self)
 
   def init: F[Unit] = Concurrent[F].unit

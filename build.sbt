@@ -1,40 +1,25 @@
 import sbt._
 import Keys._
 
+import sbtcrossproject.CrossPlugin.autoImport._
+
+import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport._
+import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
+
+val scala3 = "3.3.5"
+val scala2 = "2.13.16"
+
 ThisBuild / organization := "com.suprnation"
 ThisBuild / version := "2.0.1"
 ThisBuild / organizationName := "SuprNation"
 ThisBuild / startYear := Some(2024)
 ThisBuild / licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 
-ThisBuild / crossScalaVersions := Seq("2.13.16", "3.3.4")
-ThisBuild / scalaVersion := crossScalaVersions.value.head
+//ThisBuild / crossScalaVersions := Seq("2.13.16", "3.3.5")
+ThisBuild / scalaVersion := scala3
 
 lazy val commonSettings = Seq(
   Test / parallelExecution := false,
-  libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-effect" % "3.5.7",
-    "org.scalatest" %% "scalatest" % "3.2.19" % Test
-  ),
-  publishMavenStyle := true,
-  publishTo := {
-    val owner = "suprnation"
-    val repo = "cats-actors"
-    if (isSnapshot.value)
-      Some("GitHub Package Registry".at(s"https://maven.pkg.github.com/$owner/$repo"))
-    else
-      Some("GitHub Package Registry".at(s"https://maven.pkg.github.com/$owner/$repo"))
-  },
-  publishConfiguration := publishConfiguration.value.withOverwrite(true),
-  publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
-  libraryDependencies ++= {
-    scalaBinaryVersion.value match {
-      case "2.13" =>
-        List(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.3" cross CrossVersion.full))
-      case _ =>
-        Nil
-    }
-  },
   scalacOptions ++= {
     scalaBinaryVersion.value match {
       case "2.13" =>
@@ -45,47 +30,46 @@ lazy val commonSettings = Seq(
         )
       case _ => List("-Ykind-projector:underscores")
     }
+  },
+  libraryDependencies ++= {
+    scalaBinaryVersion.value match {
+      case "2.13" =>
+        List(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.3" cross CrossVersion.full))
+      case _ =>
+        Nil
+    }
   }
 )
 
-lazy val root = (project in file("."))
+lazy val catsActors = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .crossType(CrossType.Full)
+  .in(file("."))
   .settings(commonSettings)
   .settings(
     name := "cats-actors",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-effect" % "3.7-4972921",
+      "org.scalatest" %%% "scalatest" % "3.2.19" % Test,
+      "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.6-3786de2-SNAPSHOT" % Test
+    )
+  )
+  .jvmSettings(
+    crossJavaVersions := Seq(scala3, scala2)
+  )
+  .jsSettings(
+    crossScalaVersions := Seq(scala3)
+  )
+  .nativeSettings(
+    crossScalaVersions := Seq(scala3)
+  )
 
-    Compile / unmanagedSourceDirectories ++= Seq(
-      baseDirectory.value / "src" / "main" / "scala"
-    ),
-    Test / unmanagedSourceDirectories ++= Seq(
-      baseDirectory.value / "src" / "test" / "scala"
-    ),
-    // Ensure the artifacts are published with the Scala version in the name
-    Compile / packageBin / artifactPath := {
-      val artPath = (Compile / packageBin / artifactPath).value
-      val scalaVer = scalaBinaryVersion.value match {
-        case "2.13" => "2_13"
-        case "3" => "3"
-        case other => other.replace('.', '_')
-      }
-      file(s"${artPath.getParent}/cats-actors_${scalaVer}-${version.value}.jar")
-    },
-    // Add tasks to create source and javadoc JARs
-    Compile / packageSrc / artifactPath := {
-      val artPath = (Compile / packageSrc / artifactPath).value
-      val scalaVer = scalaBinaryVersion.value match {
-        case "2.13" => "2_13"
-        case "3" => "3"
-        case other => other.replace('.', '_')
-      }
-      file(s"${artPath.getParent}/cats-actors_${scalaVer}-${version.value}-sources.jar")
-    },
-    Compile / packageDoc / artifactPath := {
-      val artPath = (Compile / packageDoc / artifactPath).value
-      val scalaVer = scalaBinaryVersion.value match {
-        case "2.13" => "2_13"
-        case "3" => "3"
-        case other => other.replace('.', '_')
-      }
-      file(s"${artPath.getParent}/cats-actors_${scalaVer}-${version.value}-javadoc.jar")
-    }
+lazy val catsActorsJVM = catsActors.jvm
+lazy val catsActorsJS = catsActors.js
+lazy val catsActorsNative = catsActors.native
+
+lazy val root = (project in file("root"))
+  .aggregate(catsActorsJVM, catsActorsJS, catsActorsNative)
+  .settings(
+    name := "cats-actors-root",
+    publish / skip := true
   )

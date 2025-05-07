@@ -20,10 +20,11 @@ import cats.effect.{Async, Deferred}
 import cats.implicits._
 import cats.{Applicative, Parallel}
 import com.suprnation.actor.Actor.Actor
+import com.suprnation.actor.utils.IdGen
 import com.suprnation.actor.ActorRef.{ActorRef, NoSendActorRef}
 import com.suprnation.actor.engine.ActorCell
 
-import java.util.UUID
+//import java.util.UUID
 
 /** Interface by the ActorSystem and ActorContext, the only two places from which you can get a fresh actor.
   */
@@ -51,7 +52,7 @@ trait FiberActorRefProvider[F[+_]] {
     */
   def actorOf[Request](
       props: F[Actor[F, Request]],
-      name: => String = UUID.randomUUID().toString
+      name: => String = IdGen.newId()
   ): F[InternalActorRef[F, Request, Any]] = replyingActorOf[Request, Any](props, name)
 
   /** Create new actor as child of this context and give it a name.
@@ -59,7 +60,7 @@ trait FiberActorRefProvider[F[+_]] {
   def replyingActorOf[Request, Response](props: => ReplyingActor[F, Request, Response])(implicit
       applicativeEvidence: Applicative[F]
   ): F[InternalActorRef[F, Request, Response]] =
-    replyingActorOf[Request, Response](props, UUID.randomUUID().toString)
+    replyingActorOf[Request, Response](props, IdGen.newId())
 
   /** Create new actor as child of this context and give it a name.
     */
@@ -79,7 +80,7 @@ trait FiberActorRefProvider[F[+_]] {
     */
   def replyingActorOf[Request, Response](
       props: F[ReplyingActor[F, Request, Response]],
-      name: => String = UUID.randomUUID().toString
+      name: => String = IdGen.newId()
   ): F[InternalActorRef[F, Request, Response]]
 }
 
@@ -99,13 +100,13 @@ trait ActorRefProvider[F[+_]] {
 
   def actorOf[Request](
       props: F[Actor[F, Request]],
-      name: => String = UUID.randomUUID().toString
+      name: => String = IdGen.newId()
   ): F[ActorRef[F, Request]] = replyingActorOf[Request, Any](props, name)
 
   def replyingActorOf[Request, Response](actor: => ReplyingActor[F, Request, Response])(implicit
       applicationF: Applicative[F]
   ): F[ReplyingActorRef[F, Request, Response]] =
-    replyingActorOf[Request, Response](actor.pure[F], UUID.randomUUID().toString)
+    replyingActorOf[Request, Response](actor.pure[F], IdGen.newId())
 
   def replyingActorOf[Request, Response](
       actor: => ReplyingActor[F, Request, Response],
@@ -117,7 +118,7 @@ trait ActorRefProvider[F[+_]] {
 
   def replyingActorOf[Request, Response](
       props: F[ReplyingActor[F, Request, Response]],
-      name: => String = UUID.randomUUID().toString
+      name: => String = IdGen.newId()
   ): F[ReplyingActorRef[F, Request, Response]]
 }
 
@@ -129,7 +130,7 @@ class LocalActorRefProvider[F[+_]: Async: Console: Parallel](
 ) extends FiberActorRefProvider[F] {
   override def replyingActorOf[Request, Response](
       props: F[ReplyingActor[F, Request, Response]],
-      name: => String = UUID.randomUUID().toString
+      name: => String = IdGen.newId()
   ): F[InternalActorRef[F, Request, Response]] = {
     val childPath: ActorPath = new ChildActorPath(parent.path, name, ActorCell.newUid())
     InternalActorRef[F, Request, Response](

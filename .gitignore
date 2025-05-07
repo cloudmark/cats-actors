@@ -47,8 +47,10 @@
 # Standard symbolic link to build/quick/bin
 /qbin
 
+# Ignore all SBT target directories
+*/target/
+target/
 # sbt's target directories
-/target/
 /project/**/target/
 /test/macro-annot/target/
 /test/files/target/
@@ -70,3 +72,4 @@ project/**/metals.sbt
 .history
 scala2/target
 scala3/target
+*.nir

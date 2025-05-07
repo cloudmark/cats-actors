@@ -24,10 +24,11 @@ import cats.{Applicative, Parallel}
 import com.suprnation.actor
 import com.suprnation.actor.Actor.{Actor, ReplyingReceive}
 import com.suprnation.actor.ActorRef.ActorRef
+import com.suprnation.actor.utils.IdGen
 import com.suprnation.actor.event.DeadLetterListener
 import com.suprnation.typelevel.actors.syntax._
 
-import java.util.UUID
+//import java.util.UUID
 
 trait RootActorCreator[F[+_]] {
   def createRootActor[Request, Response](
@@ -45,7 +46,8 @@ trait RootActorCreator[F[+_]] {
 object ActorSystem {
   // Concurrent.pure needs to change
   def apply[F[+_]: Console: Async](): Resource[F, ActorSystem[F]] = apply(
-    UUID.randomUUID().toString
+    // UUID.randomUUID().toString
+    IdGen.newId()
   )
 
   def apply[F[+_]: Console: Async](
@@ -113,7 +115,7 @@ object ActorSystem {
 
               override def replyingActorOf[Request, Response](
                   props: F[ReplyingActor[F, Request, Response]],
-                  name: => String = UUID.randomUUID().toString
+                  name: => String = IdGen.newId()
               ): F[ReplyingActorRef[F, Request, Response]] = for {
                 guardian <- guardian.get
                 // Use the cell in the actor to create more children.

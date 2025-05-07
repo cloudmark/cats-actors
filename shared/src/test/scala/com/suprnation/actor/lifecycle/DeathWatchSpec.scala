@@ -19,6 +19,7 @@ package com.suprnation.actor.lifecycle
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.suprnation.actor.Actor.Actor
+import com.suprnation.actor.utils.IdGen
 import com.suprnation.actor.ActorRef.{ActorRef, NoSendActorRef}
 import com.suprnation.actor._
 import com.suprnation.actor.engine.ActorCell
@@ -27,7 +28,7 @@ import com.suprnation.typelevel.actors.syntax._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.util.UUID
+//import java.util.UUID
 
 class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
@@ -604,7 +605,7 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
   private def watch(
       watcher: ActorRef[IO, DeathWatchRequest],
       watchee: NoSendActorRef[IO],
-      correlationId: String = UUID.randomUUID().toString
+      correlationId: String = IdGen.newId()
   ): IO[NoSendActorRef[IO]] =
     watcher.cell.flatMap(x =>
       x.asInstanceOf[ActorCell[IO, DeathWatchRequest, Any]]
