@@ -50,7 +50,8 @@ lazy val catsActors = crossProject(JSPlatform, JVMPlatform, NativePlatform)
     libraryDependencies ++= Seq(
       "org.typelevel" %%% "cats-effect" % "3.7-4972921",
       "org.scalatest" %%% "scalatest" % "3.2.19" % Test,
-      "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.6-3786de2-SNAPSHOT" % Test
+      // "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.6-3786de2-SNAPSHOT" % Test
+      "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.6-87d2376-SNAPSHOT" % Test
     )
   )
   .jvmSettings(

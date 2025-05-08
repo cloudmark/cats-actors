@@ -16,9 +16,9 @@
 
 package com.suprnation.actor.broadcast
 
-import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import cats.effect.IO
+import cats.effect.testing.scalatest.AsyncIOSpec
 import com.suprnation.actor.ActorSystem
 import com.suprnation.actor.broadcast.TreenodeActor
 import com.suprnation.actor.broadcast.TreenodeActor.{Ping, Pong, Response}
@@ -30,7 +30,7 @@ import org.scalatest.wordspec.AsyncWordSpecLike
 import scala.concurrent.duration._
 import scala.collection.immutable.Queue
 
-class BroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
+class BroadcastSpec extends AsyncWordSpecLike with AsyncIOSpec with Matchers with TestKit {
 
   "Calling broadcast on parent" should {
     "broadcast message to children asynchronously" in {
@@ -73,7 +73,6 @@ class BroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
 
           } yield response
         }
-        .unsafeToFuture()
         .map { response =>
           response should equal(
             Pong(
@@ -103,7 +102,6 @@ class BroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
 
             } yield ()
           }
-          .unsafeToFuture()
       }
     }
 
@@ -124,7 +122,6 @@ class BroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
 
             } yield ()
           }
-          .unsafeToFuture()
       }
     }
   }

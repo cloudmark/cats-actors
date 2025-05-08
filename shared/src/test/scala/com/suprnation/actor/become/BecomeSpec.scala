@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.become
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.implicits._
 import com.suprnation.actor.Actor.ReplyingReceive
@@ -24,6 +23,7 @@ import com.suprnation.actor.become.BecomeUnBecome._
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
+import cats.effect.testing.scalatest.AsyncIOSpec
 
 object BecomeUnBecome {
 
@@ -80,7 +80,7 @@ object BecomeUnBecome {
 
 /** This test suite is geared towards creating a realistic scenario which creates increasingly more complex systems.
   */
-class BecomeUnBecomeSpec extends AsyncFlatSpec with Matchers {
+class BecomeUnBecomeSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
 
   it should "(Implicit State) increment and decrement correctly" in {
     (for {
@@ -89,7 +89,7 @@ class BecomeUnBecomeSpec extends AsyncFlatSpec with Matchers {
       result1 <- (calculator ! Increment) >> (calculator ? Value)
       result2 <- (calculator ! Increment) >> (calculator ? Value)
       result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).unsafeToFuture().map { case (result1, result2, result3) =>
+    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
       result1 should be(1)
       result2 should be(2)
       result3 should be(1)
@@ -103,7 +103,7 @@ class BecomeUnBecomeSpec extends AsyncFlatSpec with Matchers {
       result1 <- (calculator ! Increment) >> (calculator ? Value)
       result2 <- (calculator ! Increment) >> (calculator ? Value)
       result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).unsafeToFuture().map { case (result1, result2, result3) =>
+    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
       result1 should be(Option(1))
       result2 should be(Option(2))
       result3 should be(Option(1))
@@ -117,7 +117,7 @@ class BecomeUnBecomeSpec extends AsyncFlatSpec with Matchers {
       result1 <- (calculator ! Increment) >> (calculator ? Value)
       result2 <- (calculator ! Increment) >> (calculator ? Value)
       result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).unsafeToFuture().map { case (result1, result2, result3) =>
+    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
       result1 should be(Option(1))
       result2 should be(Option(2))
       result3 should be(Option(1))
@@ -132,7 +132,7 @@ class BecomeUnBecomeSpec extends AsyncFlatSpec with Matchers {
       result1 <- (calculator ! Increment) >> (calculator ? Value)
       result2 <- (calculator ! Increment) >> (calculator ? Value)
       result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).unsafeToFuture().map { case (result1, result2, result3) =>
+    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
       result1 should be(1)
       result2 should be(2)
       result3 should be(1)

@@ -16,8 +16,9 @@
 
 package com.suprnation.actor.mailbox
 
-import cats.effect.unsafe.implicits.global
+//import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO, Ref}
+import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 import com.suprnation.actor.dispatch.SystemMessage
 import com.suprnation.actor.dispatch.mailbox.Mailboxes
@@ -26,6 +27,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import cats.effect.testing.scalatest.AsyncIOSpec
 
 object MailboxSuite {
   def loopUntilTrue(effect: IO[Boolean]): IO[Unit] =
@@ -42,8 +44,11 @@ object MailboxSuite {
 
 /** This test suite is geared towards creating a realistic scenario which creates increasingly more complex systems.
   */
-class MailboxSuite extends AsyncFlatSpec with Matchers {
+class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
   type AnyWithDeferred = (Any, Option[Deferred[IO, Any]])
+
+  override implicit def executionContext: scala.concurrent.ExecutionContext =
+    IORuntime.global.compute
 
   def onSystemReceive(buffer: Ref[IO, List[Any]])(systemMessage: SystemMessage[IO]): IO[Unit] =
     buffer.update(xs => xs ++ List(systemMessage))
@@ -69,7 +74,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- mailbox.close
       _ <- f.cancel
       result <- mailbox.isClosed
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(true)
     }
   }
@@ -86,7 +91,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       result <- buffer.get
       _ <- f.cancel
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1, 2))
     }
   }
@@ -109,7 +114,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1, 2))
     }
   }
@@ -135,7 +140,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1, 2))
     }
   }
@@ -158,7 +163,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1, 2, 3, 4, 5))
     }
   }
@@ -181,7 +186,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1, 2, 3, 4, 5))
     }
   }
@@ -204,7 +209,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1, 2, 3, 4, 5))
     }
   }
@@ -230,7 +235,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1))
     }
   }
@@ -255,7 +260,7 @@ class MailboxSuite extends AsyncFlatSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       result should be(List(1, 2, 3, 4, 5))
     }
   }

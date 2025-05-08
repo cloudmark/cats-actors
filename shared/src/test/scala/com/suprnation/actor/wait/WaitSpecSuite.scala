@@ -16,8 +16,9 @@
 
 package com.suprnation.actor.wait
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
+import cats.effect.unsafe.IORuntime
+import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, Receive}
 import com.suprnation.actor.ActorSystem
@@ -67,7 +68,10 @@ object WaitSpecSuite {
     }
 }
 
-class WaitSpecSuite extends AsyncFlatSpec with Matchers {
+class WaitSpecSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
+
+  override lazy val executionContext: scala.concurrent.ExecutionContext =
+    IORuntime.global.compute
 
   it should "be able to wait for messages to be processed" in {
     (for {
@@ -77,7 +81,7 @@ class WaitSpecSuite extends AsyncFlatSpec with Matchers {
       _ <- (input ! "slow").start
       _ <- input.waitForIdle
       result <- ref.get
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       assert(result)
     }
 
@@ -91,7 +95,7 @@ class WaitSpecSuite extends AsyncFlatSpec with Matchers {
       _ <- (input ! "schedule").start
       _ <- input.waitForIdle
       result <- ref.get
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       assert(result)
     }
   }
@@ -107,7 +111,7 @@ class WaitSpecSuite extends AsyncFlatSpec with Matchers {
       _ <- (input ! "slow").start
       _ <- input.waitForIdle
       result <- ref.get
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       assert(result)
     }
   }
@@ -123,7 +127,7 @@ class WaitSpecSuite extends AsyncFlatSpec with Matchers {
       _ <- (input ! "schedule").start
       _ <- input.waitForIdle
       result <- ref.get
-    } yield result).unsafeToFuture().map { result =>
+    } yield result).map { result =>
       assert(result)
     }
   }
@@ -141,7 +145,7 @@ class WaitSpecSuite extends AsyncFlatSpec with Matchers {
       names <- system.allChildren >>= (children => children.traverse(_.path.name.pure[IO]))
       _ <- system.waitForIdle()
       result <- ref.get
-    } yield (names, result)).unsafeToFuture().map { case (names, result) =>
+    } yield (names, result)).map { case (names, result) =>
       assert(result)
       assert(names.toSet == Set("user", "waiting", "debug-waiting"))
     }
@@ -158,7 +162,7 @@ class WaitSpecSuite extends AsyncFlatSpec with Matchers {
       _ <- input ! "slow" // assert that at least the first actor received it in his queue.
       names <- system.waitForIdle() >>= (children => children.traverse(c => c.path.name.pure[IO]))
       result <- ref.get
-    } yield (names, result)).unsafeToFuture().map { case (names, result) =>
+    } yield (names, result)).map { case (names, result) =>
       assert(result)
       assert(
         names.toSet == Set(

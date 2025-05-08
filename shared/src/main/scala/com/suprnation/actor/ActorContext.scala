@@ -22,8 +22,8 @@ import cats.implicits._
 import com.suprnation.actor.Actor.ReplyingReceive
 import com.suprnation.actor.ActorRef.{ActorRef, NoSendActorRef}
 import com.suprnation.actor.dungeon.Creation.CreationContext
+import com.suprnation.actor.utils.IdGen
 
-import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 object ActorContext {
@@ -116,7 +116,7 @@ object ActorContext {
 
     override def replyingActorOf[ChildRequest, ChildResponse](
         props: F[ReplyingActor[F, ChildRequest, ChildResponse]],
-        name: => String = UUID.randomUUID().toString
+        name: => String = IdGen.newId() // = UUID.randomUUID().toString
     ): F[ReplyingActorRef[F, ChildRequest, ChildResponse]] =
       for {
         cellOp <- _self.actorCellRef.get

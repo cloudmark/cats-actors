@@ -16,16 +16,16 @@
 
 package com.suprnation.actor.ask
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO}
 import cats.effect.implicits._
+import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, ReplyingReceive}
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
+import com.suprnation.compat.Compat
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.Assertions
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 object AskSpec {
@@ -41,9 +41,14 @@ object AskSpec {
   }
 }
 
-class AskSpec extends AsyncFlatSpec with Matchers with Assertions with ScalaFutures {
+import cats.effect.unsafe.IORuntime
+
+class AskSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers with Assertions {
 
   import AskSpec._
+
+  // override implicit def executionContext: scala.concurrent.ExecutionContext =
+  //   IORuntime.global.compute
 
   it should "return the correct response" in {
     ActorSystem[IO]("AskSpec")
@@ -54,7 +59,6 @@ class AskSpec extends AsyncFlatSpec with Matchers with Assertions with ScalaFutu
           response <- actor ? Hi(4567)
         } yield response shouldBe 4567
       }
-      .unsafeToFuture()
 
   }
 
@@ -68,21 +72,21 @@ class AskSpec extends AsyncFlatSpec with Matchers with Assertions with ScalaFutu
             response <- actor ? Error("oops")
           } yield ()
         }
-        .unsafeToFuture()
     }
 
   }
 
   it should "receive the response even if the actor system is terminated" in {
 
-    implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 2.seconds)
+    // implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 2.seconds)
 
     val childResponseDelay = 500.millis
     val systemTerminateAfter = 200.millis
 
     case class AskChildActor() extends ReplyingActor[IO, String, String] {
       override def receive: ReplyingReceive[IO, String, String] = { case "req" =>
-        IO.sleep(childResponseDelay).as("res")
+        println("Child actor received request")
+        Compat.sleep(childResponseDelay).as("res")
       }
     }
 
@@ -91,7 +95,11 @@ class AskSpec extends AsyncFlatSpec with Matchers with Assertions with ScalaFutu
         context
           .replyingActorOf(AskChildActor())
           .flatMap(_ ? msg)
-          .flatMap(res => responseDeferred.complete(res))
+          // .flatMap(res => responseDeferred.complete(res))
+          .flatMap { res =>
+            println("Compling the response!")
+            responseDeferred.complete(res)
+          }
       }
     }
 
@@ -102,11 +110,11 @@ class AskSpec extends AsyncFlatSpec with Matchers with Assertions with ScalaFutu
           parentActor <- actorSystem.actorOf(AskParentActor(responseDeferred))
           _ <- parentActor ! "req"
           _ <- IO.sleep(systemTerminateAfter)
+          response <- responseDeferred.get
         } yield responseDeferred
       }
       .flatMap(_.get)
-      .unsafeToFuture()
-      .futureValue shouldBe "res"
+      .map(_ shouldBe "res")
   }
 
 }
