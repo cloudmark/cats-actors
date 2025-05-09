@@ -21,11 +21,10 @@ import cats.effect.{IO, Ref}
 import cats.implicits._
 import com.suprnation.actor.ActorRef.ActorRef
 import com.suprnation.actor.ActorSystem
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class VendingMachineFSMSuite extends AsyncFlatSpec with Matchers {
+class VendingMachineFSMSuite extends CatsActorFlatSpec {
   it should "allow transition to another state (outcome insertMoney)" in {
     ActorSystem[IO]("FSM Actor")
       .use { actorSystem =>
@@ -43,7 +42,6 @@ class VendingMachineFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield response
       }
-      .unsafeToFuture()
       .map { case message =>
         message should be(RemainingMoney(1.00))
       }
@@ -79,7 +77,6 @@ class VendingMachineFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield messages
       }
-      .unsafeToFuture()
       .map { case messages =>
         messages.toList should be(
           List(
@@ -120,7 +117,6 @@ class VendingMachineFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield response
       }
-      .unsafeToFuture()
       .map { case message =>
         message should be(
           // This message has moved to the awaiting payment state

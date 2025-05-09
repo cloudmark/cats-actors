@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.timers
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{Async, IO, Ref}
 import com.suprnation.actor.Actor.{Actor, Receive, ReplyingReceive}
 import com.suprnation.actor.SupervisorStrategy.{Restart, Stop}
@@ -35,15 +34,14 @@ import com.suprnation.actor.{
   SupervisionStrategy,
   Timers
 }
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 //import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import com.suprnation.actor.utils.IdGen
 
-class TimerSpec extends AsyncFlatSpec with Matchers with TestKit {
+class TimerSpec extends CatsActorFlatSpec with TestKit {
 
   val startTimerA: StartSingleTimer = StartSingleTimer("KeyA", 150.millis)
   val counterAddA: CounterAdd = CounterAdd("KeyA")

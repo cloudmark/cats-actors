@@ -21,9 +21,7 @@ import cats.implicits._
 import com.suprnation.actor.Actor.ReplyingReceive
 import com.suprnation.actor.become.BecomeUnBecome._
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
-import cats.effect.testing.scalatest.AsyncIOSpec
+import com.suprnation.spec.CatsActorFlatSpec
 
 object BecomeUnBecome {
 
@@ -80,7 +78,7 @@ object BecomeUnBecome {
 
 /** This test suite is geared towards creating a realistic scenario which creates increasingly more complex systems.
   */
-class BecomeUnBecomeSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
+class BecomeUnBecomeSpec extends CatsActorFlatSpec {
 
   it should "(Implicit State) increment and decrement correctly" in {
     (for {

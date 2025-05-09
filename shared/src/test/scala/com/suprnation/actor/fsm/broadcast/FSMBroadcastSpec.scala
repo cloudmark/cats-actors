@@ -18,7 +18,6 @@ package com.suprnation.actor
 package fsm
 package broadcast
 
-import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import cats.effect.{IO, Ref}
 import com.suprnation.actor.broadcast.TreenodeActor
@@ -27,13 +26,12 @@ import com.suprnation.actor.fsm.broadcast.TreenodeFsmActor
 import com.suprnation.actor.fsm.broadcast.TreenodeFsmActor.TreenodeData
 import com.suprnation.actor.test.TestKit
 import com.suprnation.actor.utils.Typechecking.TypecheckException
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AsyncWordSpecLike
+import com.suprnation.spec.CatsActorWordSpec
 
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 
-class FSMBroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
+class FSMBroadcastSpec extends CatsActorWordSpec with TestKit {
   val numberOfChildren = 4
   val numberOfGrandChildren = 2
 
@@ -92,7 +90,6 @@ class FSMBroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
 
           } yield (response, dataResult.requests)
         }
-        .unsafeToFuture()
         .map { case (response, data) =>
           response should equal(
             Pong(
@@ -133,7 +130,6 @@ class FSMBroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
 
             } yield ()
           }
-          .unsafeToFuture()
       }
     }
 
@@ -156,7 +152,6 @@ class FSMBroadcastSpec extends AsyncWordSpecLike with Matchers with TestKit {
 
             } yield ()
           }
-          .unsafeToFuture()
       }
     }
   }

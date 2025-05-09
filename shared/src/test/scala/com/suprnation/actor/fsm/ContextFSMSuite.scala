@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.fsm
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO, Ref}
 import cats.implicits.catsSyntaxApplicativeId
 import com.suprnation.actor.fsm.ContextFSMSuite._
@@ -24,10 +23,9 @@ import com.suprnation.actor.Actor.{Actor, Receive}
 import com.suprnation.actor.fsm.FSM.Event
 import com.suprnation.actor.fsm.{FSM, FSMConfig}
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
 import com.suprnation.typelevel.fsm.syntax.FSMStateSyntaxOps
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.DurationInt
 
@@ -74,7 +72,7 @@ object ContextFSMSuite {
 
 }
 
-class ContextFSMSuite extends AsyncFlatSpec with Matchers {
+class ContextFSMSuite extends CatsActorFlatSpec {
 
   it should "create child actor and send a message to self" in {
     ActorSystem[IO]("FSM Actor")

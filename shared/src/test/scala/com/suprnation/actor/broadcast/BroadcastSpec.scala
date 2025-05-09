@@ -19,18 +19,21 @@ package com.suprnation.actor.broadcast
 import cats.implicits._
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
+import cats.effect.unsafe.IORuntime
 import com.suprnation.actor.ActorSystem
 import com.suprnation.actor.broadcast.TreenodeActor
 import com.suprnation.actor.broadcast.TreenodeActor.{Ping, Pong, Response}
+import com.suprnation.spec.CatsActorWordSpec
 import com.suprnation.actor.test.TestKit
 import com.suprnation.actor.utils.Typechecking.TypecheckException
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AsyncWordSpecLike
 
 import scala.concurrent.duration._
 import scala.collection.immutable.Queue
 
-class BroadcastSpec extends AsyncWordSpecLike with AsyncIOSpec with Matchers with TestKit {
+class BroadcastSpec extends CatsActorWordSpec with TestKit {
+
+  override implicit lazy val executionContext: scala.concurrent.ExecutionContext =
+    IORuntime.global.compute
 
   "Calling broadcast on parent" should {
     "broadcast message to children asynchronously" in {
@@ -44,11 +47,7 @@ class BroadcastSpec extends AsyncWordSpecLike with AsyncIOSpec with Matchers wit
 
             response <- within(2.seconds)(a1 ? Ping)
 
-          } yield response
-        }
-        .unsafeToFuture()
-        .map { response =>
-          response should equal(Pong(Queue.range(1, 10).map(i => s"a-1-$i") :+ "a-1"))
+          } yield response should equal(Pong(Queue.range(1, 10).map(i => s"a-1-$i") :+ "a-1"))
         }
     }
 
@@ -71,10 +70,7 @@ class BroadcastSpec extends AsyncWordSpecLike with AsyncIOSpec with Matchers wit
 
             response <- within(2.seconds)(b1 ? Ping)
 
-          } yield response
-        }
-        .map { response =>
-          response should equal(
+          } yield response should equal(
             Pong(
               Queue
                 .range(1, 10)
@@ -82,7 +78,6 @@ class BroadcastSpec extends AsyncWordSpecLike with AsyncIOSpec with Matchers wit
             )
           )
         }
-
     }
 
     "escalate error properly" in {

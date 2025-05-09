@@ -19,13 +19,12 @@ package com.suprnation.typelevel.actors.syntax
 import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO}
 import com.suprnation.actor.{Actor, ActorSystem}
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
+import com.suprnation.spec.CatsActorFlatSpec
 
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-class ActorSystemDebugSyntaxSpec extends AsyncFlatSpec with Matchers {
+class ActorSystemDebugSyntaxSpec extends CatsActorFlatSpec {
 
   it should "wait for schedule to be completed before progressing" in {
     ActorSystem[IO]()
@@ -42,7 +41,6 @@ class ActorSystemDebugSyntaxSpec extends AsyncFlatSpec with Matchers {
           )
         } yield result.isLeft should be(true)
       )
-      .unsafeToFuture()
   }
 
   it should "wait for all schedules to be completed before progressing" in {
@@ -63,7 +61,6 @@ class ActorSystemDebugSyntaxSpec extends AsyncFlatSpec with Matchers {
           )
         } yield result.isLeft should be(true)
       )
-      .unsafeToFuture()
   }
 
   it should "not wait for any schedules to be completed before progressing" in {
@@ -86,7 +83,6 @@ class ActorSystemDebugSyntaxSpec extends AsyncFlatSpec with Matchers {
           )
         } yield result.isLeft should be(true)
       )
-      .unsafeToFuture()
   }
 
   it should "wait for mailboxes to be empty before progressing" in {
@@ -108,7 +104,6 @@ class ActorSystemDebugSyntaxSpec extends AsyncFlatSpec with Matchers {
           )
         } yield result.isLeft should be(true)
       )
-      .unsafeToFuture()
   }
 
   it should "wait for scheduler and all mailboxes to be empty before progressing" in {
@@ -137,7 +132,6 @@ class ActorSystemDebugSyntaxSpec extends AsyncFlatSpec with Matchers {
           )
         } yield result.isLeft should be(true)
       )
-      .unsafeToFuture()
   }
 
 }

@@ -17,7 +17,6 @@
 package com.suprnation.actor.suspension
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.suprnation.actor.Actor.{Actor, Receive}
 import com.suprnation.actor.suspension.Suspension.{suspensionExample, suspensionExampleWithPreStart}
 import com.suprnation.actor.{ActorSystem, InternalActorRef, ReplyingActorRef}
@@ -26,6 +25,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import com.suprnation.spec.CatsActorFlatSpec
 
 object Suspension {
 
@@ -53,7 +53,7 @@ object Suspension {
   }
 }
 
-class SuspensionSpec extends AsyncFlatSpec with Matchers {
+class SuspensionSpec extends CatsActorFlatSpec {
 
   it should "be able to suspend mailbox and resume it (pre-start)" in {
     (for {
@@ -61,7 +61,7 @@ class SuspensionSpec extends AsyncFlatSpec with Matchers {
       input <- system.actorOf[String](suspensionExampleWithPreStart, "suspension")
       _ <- input ! "suspend"
       result <- IO.race(IO.sleep(50 millis), input ?! "Post Suspend")
-    } yield result).unsafeToFuture().map {
+    } yield result).map {
       case Right(_) => succeed
       case Left(_) => fail("The race has completed before the post suspend has reached the mailbox")
     }
@@ -76,7 +76,7 @@ class SuspensionSpec extends AsyncFlatSpec with Matchers {
       )).foreverM.start
       _ <- input ! "suspend"
       result <- IO.race(IO.sleep(4 millis), input ?! "Post Suspend")
-    } yield result).unsafeToFuture().map {
+    } yield result).map {
       case Right(_) =>
         fail("The actor is suspended, we should not be able to resume internally from the actor. ")
       case Left(_) => succeed

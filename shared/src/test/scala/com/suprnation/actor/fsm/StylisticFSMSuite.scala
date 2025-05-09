@@ -16,16 +16,14 @@
 
 package com.suprnation.actor.fsm
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.implicits._
 import com.suprnation.actor.ActorSystem
 import com.suprnation.actor.fsm.FSM.Event
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
 import com.suprnation.typelevel.fsm.instances._
 import com.suprnation.typelevel.fsm.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 import com.suprnation.actor.ReplyingActor
 
 // Define states
@@ -80,7 +78,7 @@ object Turnstile {
       .initialize
 
 }
-class FSMStyleSuite extends AsyncFlatSpec with Matchers {
+class FSMStyleSuite extends CatsActorFlatSpec {
   it should "allow an FMSBuilder style to defined an FSM" in {
     ActorSystem[IO]("FSM Actor")
       .use { actorSystem =>
@@ -95,7 +93,6 @@ class FSMStyleSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield r0 ++ r1
       }
-      .unsafeToFuture()
       .map { messages =>
         messages.toList should be(
           List(
@@ -120,7 +117,6 @@ class FSMStyleSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield r0 ++ r1
       }
-      .unsafeToFuture()
       .map { messages =>
         messages.toList should be(
           List(

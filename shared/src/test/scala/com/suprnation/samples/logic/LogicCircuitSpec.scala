@@ -16,20 +16,20 @@
 
 package com.suprnation.samples.logic
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import com.suprnation.actor._
 import com.suprnation.typelevel.actors.syntax._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
+import com.suprnation.spec.CatsActorFlatSpec
 
 /** This test suite is geared towards creating a realistic scenario which creates increasingly more complex systems.
   */
-class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
+class LogicCircuitSpec extends CatsActorFlatSpec with SimConfig {
   val pertuberation: Int = 2
 
   "Wire" should "return value" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Logic Circuits", (_: Any) => IO.unit).allocated.map(_._1)
       input <- actorSystem.actorOf(Wire(false), "in0")
       probe <- actorSystem.actorOf(Probe(input), "probe0")
@@ -38,14 +38,14 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       result1 <- probe.narrowResponse[Boolean] ? GetValue
       _ <- input ! false
       result2 <- probe.narrowResponse[Boolean] ? GetValue
-    } yield (result1, result2)).unsafeToFuture().map { case (result1, result2) =>
+    } yield {
       result1 should be(true)
       result2 should be(false)
     }
   }
 
   "Debug" should "allow us to debug the system" in {
-    (for {
+    for {
       debugMessage <- Ref.of[IO, Option[String]](None)
       system <- ActorSystem[IO](
         "Logic Circuits",
@@ -56,7 +56,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       result <- input.narrowResponse[Boolean] ? GetValue
       _ <- system.waitForIdle()
       debugMessage <- debugMessage.get
-    } yield (result, debugMessage)).unsafeToFuture().map { case (result, debugMessage) =>
+    } yield {
       result should be(true)
       debugMessage should not be None
       debugMessage should be(
@@ -68,7 +68,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
   }
 
   "A Not gate" should "not the result from an up stream stimulus" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Inverter Circuit", (_: Any) => IO.unit).allocated.map(_._1)
 
       input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
@@ -87,14 +87,14 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       _ <- actorSystem.waitForIdle()
       res2 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield (res1, res2)).unsafeToFuture().map { case (res1, res2) =>
+    } yield {
       res1 should be(false)
       res2 should be(true)
     }
   }
 
   "An And gate system (with probes)" should "behave as an And gate to the wire stimuli" in {
-    (for {
+    for {
       // AND Circuit
       system <- ActorSystem[IO]("AND Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
       input0 <- system.actorOfWithDebug(Wire(false), "in0")
@@ -124,7 +124,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       _ <- system.waitForIdle()
       res3 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield (res1, res2, res3)).unsafeToFuture().map { case (res1, res2, res3) =>
+    } yield {
       res1 should be(false)
       res2 should be(true)
       res3 should be(false)
@@ -132,7 +132,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
   }
 
   "An And gate with syntactic sugar" should "behave as an And gate to the wire stimuli" in {
-    (for {
+    for {
       // Creating AND Circuit
       system <- ActorSystem[IO]("AND Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
       input0 <- system.actorOfWithDebug(Wire(false), "in0")
@@ -156,7 +156,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       _ <- system.waitForIdle()
       res3 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield (res1, res2, res3)).unsafeToFuture().map { case (res1, res2, res3) =>
+    } yield {
       res1 should be(false)
       res2 should be(true)
       res3 should be(false)
@@ -164,7 +164,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
   }
 
   "An Or gate" should "behave as an Or gate to the wire stimuli" in {
-    (for {
+    for {
       // Creating OR Circuit
       actorSystem <- ActorSystem[IO]("OR Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
       input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
@@ -194,7 +194,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       _ <- actorSystem.waitForIdle()
       res4 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield (res1, res2, res3, res4)).unsafeToFuture().map { case (res1, res2, res3, res4) =>
+    } yield {
       res1 should be(true)
       res2 should be(true)
       res3 should be(true)
@@ -203,7 +203,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
   }
 
   "An Alternate Or gate" should "behave as an Or gate (slightly slower) to the wire stimuli" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("OR Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
       input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
       input1 <- actorSystem.actorOfWithDebug(Wire(false), "in1")
@@ -234,7 +234,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       _ <- actorSystem.waitForIdle()
       res4 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield (res1, res2, res3, res4)).unsafeToFuture().map { case (res1, res2, res3, res4) =>
+    } yield {
       res1 should be(true)
       res2 should be(true)
       res3 should be(true)
@@ -243,7 +243,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
   }
 
   "A Half Adder" should "act like a Half Adder to the wire stimuli" in {
-    (for {
+    for {
       system <- ActorSystem[IO]("Half Adder", (_: Any) => IO.unit).allocated.map(_._1)
       a <- system.actorOfWithDebug(Wire(false), "a")
       b <- system.actorOfWithDebug(Wire(false), "b")
@@ -273,17 +273,15 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       _ <- system.waitForIdle()
       s2 <- s.narrowResponse[Boolean] ? GetValue
       c2 <- c.narrowResponse[Boolean] ? GetValue
+    } yield {
+      s0 should be(true)
+      c0 should be(false)
 
-    } yield ((s0, c0), (s1, c1), (s2, c2))).unsafeToFuture().map {
-      case ((s0, c0), (s1, c1), (s2, c2)) =>
-        s0 should be(true)
-        c0 should be(false)
+      s1 should be(false)
+      c1 should be(true)
 
-        s1 should be(false)
-        c1 should be(true)
-
-        s2 should be(true)
-        c2 should be(false)
+      s2 should be(true)
+      c2 should be(false)
     }
   }
 
@@ -319,7 +317,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       s8 <- checkTruthTable(true, true, true)
 
       _ <- system.waitForIdle()
-    } yield (s1, s2, s3, s4, s5, s6, s7, s8)).unsafeToFuture().map {
+    } yield (s1, s2, s3, s4, s5, s6, s7, s8)).map {
       case ((s1, c1), (s2, c2), (s3, c3), (s4, c4), (s5, c5), (s6, c6), (s7, c7), (s8, c8)) =>
         // Scenario 1 - false, false, false, false, false
         s1 should be(false)
@@ -379,7 +377,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       s1 <- checkTruthTable(false)
       s2 <- checkTruthTable(true)
 
-    } yield (s1, s2)).unsafeToFuture().map { case ((s1Out1, s1Out2), (s2Out1, s2Out2)) =>
+    } yield (s1, s2)).map { case ((s1Out1, s1Out2), (s2Out1, s2Out2)) =>
       // true, false
       s1Out1 should be(true)
       s1Out2 should be(false)
@@ -424,7 +422,7 @@ class LogicCircuitSpec extends AsyncFlatSpec with Matchers with SimConfig {
       s2 <- checkTruthTable(false, true)
       s3 <- checkTruthTable(true, false)
       s4 <- checkTruthTable(true, true)
-    } yield (s1, s2, s3, s4)).unsafeToFuture().map {
+    } yield (s1, s2, s3, s4)).map {
       case (
             (s0o1, s0o2, s0o3, s0o4),
             (s1o1, s1o2, s1o3, s1o4),

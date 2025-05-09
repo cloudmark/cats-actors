@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.fsm
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, ReplyingReceive}
@@ -29,10 +28,9 @@ import com.suprnation.actor.fsm.State.replies._
 import com.suprnation.typelevel.actors.syntax._
 import com.suprnation.typelevel.fsm.instances._
 import com.suprnation.typelevel.fsm.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.HashMap
+import com.suprnation.spec.CatsActorFlatSpec
 
 object ChattyTurnstile {
 
@@ -100,7 +98,7 @@ object ChattyTurnstile {
   }
 }
 
-class ResponseFSMSuite extends AsyncFlatSpec with Matchers {
+class ResponseFSMSuite extends CatsActorFlatSpec {
   it should "respond properly by sending messages" in {
     ActorSystem[IO]("FSM Actor")
       .use { actorSystem =>
@@ -123,7 +121,6 @@ class ResponseFSMSuite extends AsyncFlatSpec with Matchers {
           messages <- proxyActor.messageBuffer
         } yield (messages, r0 ++ r1)
       }
-      .unsafeToFuture()
       .map { case ((_, messages), returns) =>
         messages should be(
           List(
@@ -159,7 +156,6 @@ class ResponseFSMSuite extends AsyncFlatSpec with Matchers {
           messages <- proxyActor.messageBuffer
         } yield (messages, r0 ++ r1)
       }
-      .unsafeToFuture()
       .map { case ((_, messages), returns) =>
         messages should be(
           List(
@@ -202,7 +198,6 @@ class ResponseFSMSuite extends AsyncFlatSpec with Matchers {
           messages <- proxyActor.messageBuffer
         } yield (messages, r0 ++ r1)
       }
-      .unsafeToFuture()
       .map { case ((_, messages), returns) =>
         messages should be(
           List(

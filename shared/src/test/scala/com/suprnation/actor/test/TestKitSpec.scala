@@ -17,22 +17,20 @@
 package com.suprnation.actor.test
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.suprnation.actor.Actor.Actor
 import com.suprnation.actor.ActorRef.ActorRef
 import com.suprnation.actor.debug.TrackingActor
 import com.suprnation.actor.{Actor, ActorSystem}
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
 import org.scalatest.Assertion
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeoutException
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 
-class TestKitSpec extends AsyncFlatSpec with Matchers with TestKit {
+class TestKitSpec extends CatsActorFlatSpec with TestKit {
 
   type Fixture = (ActorSystem[IO], ActorRef[IO, Any])
 
@@ -51,7 +49,6 @@ class TestKitSpec extends AsyncFlatSpec with Matchers with TestKit {
           result <- test(actorSystem, actorRef)
         } yield result
       }
-      .unsafeToFuture()
 
   protected def testActorSystem(
       actor: Actor[IO, Any]
@@ -64,7 +61,6 @@ class TestKitSpec extends AsyncFlatSpec with Matchers with TestKit {
           result <- test(actorSystem, actorRef)
         } yield result
       }
-      .unsafeToFuture()
 
   "expectTerminated" should "assert true when the actor is terminated" in {
     testActorSystem { case (actorSystem, actorRef) =>

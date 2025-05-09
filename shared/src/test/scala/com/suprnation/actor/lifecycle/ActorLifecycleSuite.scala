@@ -16,15 +16,13 @@
 
 package com.suprnation.actor.lifecycle
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import com.suprnation.actor.Actor.{Actor, Receive}
 import com.suprnation.actor._
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
-class ActorLifecycleSuite extends AsyncFlatSpec with Matchers {
+class ActorLifecycleSuite extends CatsActorFlatSpec {
   trait ActorLifecycleRequests
   case object GetRef extends ActorLifecycleRequests
   case object Stop extends ActorLifecycleRequests

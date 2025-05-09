@@ -16,17 +16,16 @@
 
 package com.suprnation.actor.fsm
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO}
 import com.suprnation.actor.fsm.FSM.Event
 import com.suprnation.actor.fsm.{FSM, FSMConfig, Normal}
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
 import com.suprnation.actor.fsm.TerminationFSMSuite._
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.DurationInt
+import com.suprnation.spec.CatsActorFlatSpec
 
 object TerminationFSMSuite {
 
@@ -55,7 +54,7 @@ object TerminationFSMSuite {
 
 }
 
-class TerminationFSMSuite extends AsyncFlatSpec with Matchers {
+class TerminationFSMSuite extends CatsActorFlatSpec {
 
   it should "create child actor and send a message to self" in {
     ActorSystem[IO]("FSM Actor")
@@ -75,7 +74,6 @@ class TerminationFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield fsmExitCode
       }
-      .unsafeToFuture()
       .map { fsmExitCode =>
         fsmExitCode should be(Right(0))
       }

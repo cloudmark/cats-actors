@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.scheduler
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.effect.std.CountDownLatch
 import cats.effect.implicits._
@@ -27,9 +26,8 @@ import com.suprnation.actor.ActorRef.{ActorRef, NoSendActorRef}
 import com.suprnation.actor.ActorSystem
 import com.suprnation.actor.debug.TrackingActor
 import com.suprnation.actor.sender.Sender.BaseActor.{Ask, BaseActorMessages, Forward, Tell}
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
@@ -68,7 +66,7 @@ object SchedulerSuite {
 
 }
 
-class SchedulerSuite extends AsyncFlatSpec with Matchers {
+class SchedulerSuite extends CatsActorFlatSpec {
 
   import SchedulerSuite._
 
@@ -117,7 +115,6 @@ class SchedulerSuite extends AsyncFlatSpec with Matchers {
           errors._2
         )
       }
-      .unsafeToFuture()
       .map {
         case (
               ranImmediately,
@@ -150,12 +147,9 @@ class SchedulerSuite extends AsyncFlatSpec with Matchers {
 
           _ <- IO.sleep(200.millis)
           idle <- system.scheduler.isIdle
-        } yield idle
+        } yield idle shouldBe true
       }
-      .unsafeToFuture()
-      .map { case idle =>
-        idle shouldBe true
-      }
+
   }
 
   it should "be cancellable" in {
@@ -181,7 +175,6 @@ class SchedulerSuite extends AsyncFlatSpec with Matchers {
 
         } yield (idle, messages._2)
       }
-      .unsafeToFuture()
       .map { case (idle, messages) =>
         idle shouldBe true
         messages shouldBe empty
@@ -217,7 +210,6 @@ class SchedulerSuite extends AsyncFlatSpec with Matchers {
           messages <- receiver.messageBuffer
         } yield messages._2
       }
-      .unsafeToFuture()
       .map(messages => messages shouldBe (List(Tock, Tock, Tock)))
   }
 
@@ -249,7 +241,6 @@ class SchedulerSuite extends AsyncFlatSpec with Matchers {
           idle
         )
       }
-      .unsafeToFuture()
       .map {
         case (
               messages,
@@ -286,7 +277,6 @@ class SchedulerSuite extends AsyncFlatSpec with Matchers {
 
         } yield (idle, messages._2)
       }
-      .unsafeToFuture()
       .map { case (idle, messages) =>
         idle shouldBe true
         messages shouldBe (List(Tick))

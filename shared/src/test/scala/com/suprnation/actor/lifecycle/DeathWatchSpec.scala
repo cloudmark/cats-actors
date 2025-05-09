@@ -17,7 +17,6 @@
 package com.suprnation.actor.lifecycle
 
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.suprnation.actor.Actor.Actor
 import com.suprnation.actor.utils.IdGen
 import com.suprnation.actor.ActorRef.{ActorRef, NoSendActorRef}
@@ -27,10 +26,11 @@ import com.suprnation.actor.lifecycle.Lifecycle.WatchContext
 import com.suprnation.typelevel.actors.syntax._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
+import com.suprnation.spec.CatsActorFlatSpec
 
 //import java.util.UUID
 
-class DeathWatchSpec extends AsyncFlatSpec with Matchers {
+class DeathWatchSpec extends CatsActorFlatSpec {
 
   sealed trait DeathWatchRequest
   case class Message(message: String) extends DeathWatchRequest
@@ -48,7 +48,7 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       watcherWatchContext <- getWatchContext(watcher)
       watcheeWatchContext <- getWatchContext(watchee)
-    } yield (watcherWatchContext, watcheeWatchContext)).unsafeToFuture().map {
+    } yield (watcherWatchContext, watcheeWatchContext)).map {
       case (watcherWatchContext, watcheeWatchContext) =>
         watcherWatchContext.watching should have size 1
         (watcherWatchContext.watching should contain).key(watcheeWatchContext.actor)
@@ -82,7 +82,6 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
       child1WatchContext <- getWatchContext(child1)
       child2WatchContext <- getWatchContext(child2)
     } yield (grandParentWatchContext, parentWatchContext, child1WatchContext, child2WatchContext))
-      .unsafeToFuture()
       .map {
         case (
               grandParentWatchContext,
@@ -113,7 +112,7 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
   }
 
   it should "be able to monitor parent actor in same hierarchy" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 3", (_: Any) => IO.unit).allocated.map(_._1)
       grandParent <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "grandParent")
       parent <- createChild(grandParent)(Actor.empty[IO, DeathWatchRequest], "parent")
@@ -124,20 +123,19 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       grandParentWatchContext <- getWatchContext(grandParent)
       parentWatchContext <- getWatchContext(parent)
-    } yield (grandParentWatchContext, parentWatchContext)).unsafeToFuture().map {
-      case (grandParentWatchContext, parentWatchContext) =>
-        grandParentWatchContext.watching shouldBe empty
-        grandParentWatchContext.watchedBy should have size 1
-        grandParentWatchContext.watchedBy should contain(parentWatchContext.actor)
+    } yield {
+      grandParentWatchContext.watching shouldBe empty
+      grandParentWatchContext.watchedBy should have size 1
+      grandParentWatchContext.watchedBy should contain(parentWatchContext.actor)
 
-        parentWatchContext.watching should have size 1
-        (parentWatchContext.watching should contain).key(grandParentWatchContext.actor)
-        parentWatchContext.watchedBy shouldBe empty
+      parentWatchContext.watching should have size 1
+      (parentWatchContext.watching should contain).key(grandParentWatchContext.actor)
+      parentWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "be able to monitor actor in different hierarchy" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 4", (_: Any) => IO.unit).allocated.map(_._1)
       sol <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "sol")
       centauri <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "alphaCentauri")
@@ -148,20 +146,19 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       solWatchContext <- getWatchContext(sol)
       centauriWatchContext <- getWatchContext(centauri)
-    } yield (solWatchContext, centauriWatchContext)).unsafeToFuture().map {
-      case (solWatchContext, centauriWatchContext) =>
-        solWatchContext.watching should have size 1
-        (solWatchContext.watching should contain).key(centauriWatchContext.actor)
-        solWatchContext.watchedBy shouldBe empty
+    } yield {
+      solWatchContext.watching should have size 1
+      (solWatchContext.watching should contain).key(centauriWatchContext.actor)
+      solWatchContext.watchedBy shouldBe empty
 
-        centauriWatchContext.watching shouldBe empty
-        centauriWatchContext.watchedBy should have size 1
-        centauriWatchContext.watchedBy should contain(solWatchContext.actor)
+      centauriWatchContext.watching shouldBe empty
+      centauriWatchContext.watchedBy should have size 1
+      centauriWatchContext.watchedBy should contain(solWatchContext.actor)
     }
   }
 
   it should "be able to monitor actors in different hierarchies" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 5", (_: Any) => IO.unit).allocated.map(_._1)
       sol <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "sol")
       earth <- createChild(sol)(Actor.empty[IO, DeathWatchRequest], "earth")
@@ -186,52 +183,39 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
       centauriWatchContext <- getWatchContext(centauri)
       proximaBWatchContext <- getWatchContext(proximaB)
       proximaCWatchContext <- getWatchContext(proximaC)
-    } yield (
-      solWatchContext,
-      earthWatchContext,
-      centauriWatchContext,
-      proximaBWatchContext,
-      proximaCWatchContext
-    )).unsafeToFuture().map {
-      case (
-            solWatchContext,
-            earthWatchContext,
-            centauriWatchContext,
-            proximaBWatchContext,
-            proximaCWatchContext
-          ) =>
-        solWatchContext.watching should have size 1
-        (solWatchContext.watching should contain).key(earthWatchContext.actor)
-        solWatchContext.watchedBy shouldBe empty
+    } yield {
+      solWatchContext.watching should have size 1
+      (solWatchContext.watching should contain).key(earthWatchContext.actor)
+      solWatchContext.watchedBy shouldBe empty
 
-        earthWatchContext.watching should have size 2
-        (earthWatchContext.watching should contain).key(centauriWatchContext.actor)
-        (earthWatchContext.watching should contain).key(proximaCWatchContext.actor)
-        earthWatchContext.watchedBy should have size 2
-        earthWatchContext.watchedBy should contain(solWatchContext.actor)
-        earthWatchContext.watchedBy should contain(proximaCWatchContext.actor)
+      earthWatchContext.watching should have size 2
+      (earthWatchContext.watching should contain).key(centauriWatchContext.actor)
+      (earthWatchContext.watching should contain).key(proximaCWatchContext.actor)
+      earthWatchContext.watchedBy should have size 2
+      earthWatchContext.watchedBy should contain(solWatchContext.actor)
+      earthWatchContext.watchedBy should contain(proximaCWatchContext.actor)
 
-        centauriWatchContext.watching should have size 2
-        (centauriWatchContext.watching should contain).key(proximaBWatchContext.actor)
-        (centauriWatchContext.watching should contain).key(proximaCWatchContext.actor)
-        centauriWatchContext.watchedBy should have size 1
-        centauriWatchContext.watchedBy should contain(earthWatchContext.actor)
+      centauriWatchContext.watching should have size 2
+      (centauriWatchContext.watching should contain).key(proximaBWatchContext.actor)
+      (centauriWatchContext.watching should contain).key(proximaCWatchContext.actor)
+      centauriWatchContext.watchedBy should have size 1
+      centauriWatchContext.watchedBy should contain(earthWatchContext.actor)
 
-        proximaBWatchContext.watching shouldBe empty
-        proximaBWatchContext.watchedBy should have size 1
-        proximaBWatchContext.watchedBy should contain(centauriWatchContext.actor)
+      proximaBWatchContext.watching shouldBe empty
+      proximaBWatchContext.watchedBy should have size 1
+      proximaBWatchContext.watchedBy should contain(centauriWatchContext.actor)
 
-        proximaCWatchContext.watching should have size 1
-        (proximaCWatchContext.watching should contain).key(earthWatchContext.actor)
-        proximaCWatchContext.watchedBy should have size 2
-        proximaCWatchContext.watchedBy should contain(earthWatchContext.actor)
-        proximaCWatchContext.watchedBy should contain(centauriWatchContext.actor)
+      proximaCWatchContext.watching should have size 1
+      (proximaCWatchContext.watching should contain).key(earthWatchContext.actor)
+      proximaCWatchContext.watchedBy should have size 2
+      proximaCWatchContext.watchedBy should contain(earthWatchContext.actor)
+      proximaCWatchContext.watchedBy should contain(centauriWatchContext.actor)
     }
   }
 
   it should "fail when watching same actor multiple times" in {
     recoverToExceptionIf[IllegalStateException] {
-      (for {
+      for {
         actorSystem <- ActorSystem[IO]("Death Watch 6", (_: Any) => IO.unit).allocated.map(_._1)
         watcher <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "watcher")
         watchee <- createChild(watcher)(Actor.empty[IO, DeathWatchRequest], "watchee")
@@ -239,7 +223,7 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
         _ <- watch(watcher, watchee, "a")
         _ <- watch(watcher, watchee, "b")
         _ <- actorSystem.waitForIdle()
-      } yield ()).unsafeToFuture()
+      } yield ()
     }.map(e =>
       e.getMessage should endWith(
         "[System: Death Watch 6] [Path: kukku://death-watch-6@localhost/user/watcher/watchee] [name: watchee]}) termination message was not overwritten from [Some(Terminated([System: Death Watch 6] [Path: kukku://death-watch-6@localhost/user/watcher/watchee] [name: watchee]},a))] to [Terminated([System: Death Watch 6] [Path: kukku://death-watch-6@localhost/user/watcher/watchee] [name: watchee]},b)]. If this was intended, unwatch first before using `watch` / `watchWith` with another message."
@@ -248,21 +232,21 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
   }
 
   it should "ignore self watch" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch", (_: Any) => IO.unit).allocated.map(_._1)
       watcher <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "watcher")
 
       _ <- watch(watcher, watcher)
       _ <- actorSystem.waitForIdle()
       watcherWatchContext <- getWatchContext(watcher)
-    } yield watcherWatchContext).unsafeToFuture().map { case watcherWatchContext =>
+    } yield {
       watcherWatchContext.watching shouldBe empty
       watcherWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "be aware of terminated child actor" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 7", (_: Any) => IO.unit).allocated.map(_._1)
       watcher <- actorSystem.actorOf(Actor.ignoring[IO, DeathWatchRequest], "watcher")
       watchee <- createChild(watcher)(Actor.ignoring[IO, DeathWatchRequest], "watchee")
@@ -274,18 +258,17 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       watcherWatchContext <- getWatchContext(watcher)
       watcheeWatchContext <- getWatchContext(watchee)
-    } yield (watcherWatchContext, watcheeWatchContext)).unsafeToFuture().map {
-      case (watcherWatchContext, watcheeWatchContext) =>
-        watcherWatchContext.watching shouldBe empty
-        watcherWatchContext.watchedBy shouldBe empty
+    } yield {
+      watcherWatchContext.watching shouldBe empty
+      watcherWatchContext.watchedBy shouldBe empty
 
-        watcheeWatchContext.watching shouldBe empty
-        watcheeWatchContext.watchedBy shouldBe empty
+      watcheeWatchContext.watching shouldBe empty
+      watcheeWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "stop monitoring watched actor in same hierarchy" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 8", (_: Any) => IO.unit).allocated.map(_._1)
       watcher <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "watcher")
       watchee <- createChild(watcher)(Actor.empty[IO, DeathWatchRequest], "watchee")
@@ -297,18 +280,17 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       watcherWatchContext <- getWatchContext(watcher)
       watcheeWatchContext <- getWatchContext(watchee)
-    } yield (watcherWatchContext, watcheeWatchContext)).unsafeToFuture().map {
-      case (watcherWatchContext, watcheeWatchContext) =>
-        watcherWatchContext.watching shouldBe empty
-        watcherWatchContext.watchedBy shouldBe empty
+    } yield {
+      watcherWatchContext.watching shouldBe empty
+      watcherWatchContext.watchedBy shouldBe empty
 
-        watcheeWatchContext.watching shouldBe empty
-        watcheeWatchContext.watchedBy shouldBe empty
+      watcheeWatchContext.watching shouldBe empty
+      watcheeWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "stop monitoring all watched actors in same hierarchy" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 9", (_: Any) => IO.unit).allocated.map(_._1)
       grandParent <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "grandParent")
       parent <- createChild(grandParent)(Actor.empty[IO, DeathWatchRequest], "parent")
@@ -332,31 +314,23 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
       parentWatchContext <- getWatchContext(parent)
       child1WatchContext <- getWatchContext(child1)
       child2WatchContext <- getWatchContext(child2)
-    } yield (grandParentWatchContext, parentWatchContext, child1WatchContext, child2WatchContext))
-      .unsafeToFuture()
-      .map {
-        case (
-              grandParentWatchContext,
-              parentWatchContext,
-              child1WatchContext,
-              child2WatchContext
-            ) =>
-          grandParentWatchContext.watching shouldBe empty
-          grandParentWatchContext.watchedBy shouldBe empty
+    } yield {
+      grandParentWatchContext.watching shouldBe empty
+      grandParentWatchContext.watchedBy shouldBe empty
 
-          parentWatchContext.watching shouldBe empty
-          parentWatchContext.watchedBy shouldBe empty
+      parentWatchContext.watching shouldBe empty
+      parentWatchContext.watchedBy shouldBe empty
 
-          child1WatchContext.watching shouldBe empty
-          child1WatchContext.watchedBy shouldBe empty
+      child1WatchContext.watching shouldBe empty
+      child1WatchContext.watchedBy shouldBe empty
 
-          child2WatchContext.watching shouldBe empty
-          child2WatchContext.watchedBy shouldBe empty
-      }
+      child2WatchContext.watching shouldBe empty
+      child2WatchContext.watchedBy shouldBe empty
+    }
   }
 
   it should "stop monitoring some watched actors in same hierarchy" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 10", (_: Any) => IO.unit).allocated.map(_._1)
       grandParent <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "grandParent")
       parent <- createChild(grandParent)(Actor.empty[IO, DeathWatchRequest], "parent")
@@ -378,34 +352,26 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
       parentWatchContext <- getWatchContext(parent)
       child1WatchContext <- getWatchContext(child1)
       child2WatchContext <- getWatchContext(child2)
-    } yield (grandParentWatchContext, parentWatchContext, child1WatchContext, child2WatchContext))
-      .unsafeToFuture()
-      .map {
-        case (
-              grandParentWatchContext,
-              parentWatchContext,
-              child1WatchContext,
-              child2WatchContext
-            ) =>
-          grandParentWatchContext.watching should have size 1
-          (grandParentWatchContext.watching should contain).key(child1WatchContext.actor)
-          grandParentWatchContext.watchedBy shouldBe empty
+    } yield {
+      grandParentWatchContext.watching should have size 1
+      (grandParentWatchContext.watching should contain).key(child1WatchContext.actor)
+      grandParentWatchContext.watchedBy shouldBe empty
 
-          parentWatchContext.watching should have size 1
-          (parentWatchContext.watching should contain).key(child1WatchContext.actor)
-          parentWatchContext.watchedBy shouldBe empty
+      parentWatchContext.watching should have size 1
+      (parentWatchContext.watching should contain).key(child1WatchContext.actor)
+      parentWatchContext.watchedBy shouldBe empty
 
-          child1WatchContext.watching shouldBe empty
-          child1WatchContext.watchedBy should have size 2
-          child1WatchContext.watchedBy should contain(grandParentWatchContext.actor)
+      child1WatchContext.watching shouldBe empty
+      child1WatchContext.watchedBy should have size 2
+      child1WatchContext.watchedBy should contain(grandParentWatchContext.actor)
 
-          child2WatchContext.watching shouldBe empty
-          child2WatchContext.watchedBy shouldBe empty
-      }
+      child2WatchContext.watching shouldBe empty
+      child2WatchContext.watchedBy shouldBe empty
+    }
   }
 
   it should "stop monitoring watched actor in different hierarchy" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 11", (_: Any) => IO.unit).allocated.map(_._1)
       sol <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "sol")
       centauri <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "alphaCentauri")
@@ -418,18 +384,17 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       solWatchContext <- getWatchContext(sol)
       centauriWatchContext <- getWatchContext(centauri)
-    } yield (solWatchContext, centauriWatchContext)).unsafeToFuture().map {
-      case (solWatchContext, centauriWatchContext) =>
-        solWatchContext.watching shouldBe empty
-        solWatchContext.watchedBy shouldBe empty
+    } yield {
+      solWatchContext.watching shouldBe empty
+      solWatchContext.watchedBy shouldBe empty
 
-        centauriWatchContext.watching shouldBe empty
-        centauriWatchContext.watchedBy shouldBe empty
+      centauriWatchContext.watching shouldBe empty
+      centauriWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "stop monitoring watched actor in different hierarchies" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 12", (_: Any) => IO.unit).allocated.map(_._1)
       sol <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "sol")
       earth <- createChild(sol)(Actor.empty[IO, DeathWatchRequest], "earth")
@@ -463,39 +428,26 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
       centauriWatchContext <- getWatchContext(centauri)
       proximaBWatchContext <- getWatchContext(proximaB)
       proximaCWatchContext <- getWatchContext(proximaC)
-    } yield (
-      solWatchContext,
-      earthWatchContext,
-      centauriWatchContext,
-      proximaBWatchContext,
-      proximaCWatchContext
-    )).unsafeToFuture().map {
-      case (
-            solWatchContext,
-            earthWatchContext,
-            centauriWatchContext,
-            proximaBWatchContext,
-            proximaCWatchContext
-          ) =>
-        solWatchContext.watching shouldBe empty
-        solWatchContext.watchedBy shouldBe empty
+    } yield {
+      solWatchContext.watching shouldBe empty
+      solWatchContext.watchedBy shouldBe empty
 
-        earthWatchContext.watching shouldBe empty
-        earthWatchContext.watchedBy shouldBe empty
+      earthWatchContext.watching shouldBe empty
+      earthWatchContext.watchedBy shouldBe empty
 
-        centauriWatchContext.watching shouldBe empty
-        centauriWatchContext.watchedBy shouldBe empty
+      centauriWatchContext.watching shouldBe empty
+      centauriWatchContext.watchedBy shouldBe empty
 
-        proximaBWatchContext.watching shouldBe empty
-        proximaBWatchContext.watchedBy shouldBe empty
+      proximaBWatchContext.watching shouldBe empty
+      proximaBWatchContext.watchedBy shouldBe empty
 
-        proximaCWatchContext.watching shouldBe empty
-        proximaCWatchContext.watchedBy shouldBe empty
+      proximaCWatchContext.watching shouldBe empty
+      proximaCWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "not fail when unwatching same actor multiple times" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 13", (_: Any) => IO.unit).allocated.map(_._1)
       watcher <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "watcher")
       watchee <- createChild(watcher)(Actor.empty[IO, DeathWatchRequest], "watchee")
@@ -508,18 +460,17 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       watcherWatchContext <- getWatchContext(watcher)
       watcheeWatchContext <- getWatchContext(watchee)
-    } yield (watcherWatchContext, watcheeWatchContext)).unsafeToFuture().map {
-      case (watcherWatchContext, watcheeWatchContext) =>
-        watcherWatchContext.watching shouldBe empty
-        watcherWatchContext.watchedBy shouldBe empty
+    } yield {
+      watcherWatchContext.watching shouldBe empty
+      watcherWatchContext.watchedBy shouldBe empty
 
-        watcheeWatchContext.watching shouldBe empty
-        watcheeWatchContext.watchedBy shouldBe empty
+      watcheeWatchContext.watching shouldBe empty
+      watcheeWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "ignore self unwatch" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 14", (_: Any) => IO.unit).allocated.map(_._1)
       watcher <- actorSystem.actorOf(Actor.empty[IO, DeathWatchRequest], "watcher")
       watchee <- createChild(watcher)(Actor.empty[IO, DeathWatchRequest], "watchee")
@@ -531,20 +482,19 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
 
       watcherWatchContext <- getWatchContext(watcher)
       watcheeWatchContext <- getWatchContext(watchee)
-    } yield (watcherWatchContext, watcheeWatchContext)).unsafeToFuture().map {
-      case (watcherWatchContext, watcheeWatchContext) =>
-        watcherWatchContext.watching should have size 1
-        (watcherWatchContext.watching should contain).key(watcheeWatchContext.actor)
-        watcherWatchContext.watchedBy shouldBe empty
+    } yield {
+      watcherWatchContext.watching should have size 1
+      (watcherWatchContext.watching should contain).key(watcheeWatchContext.actor)
+      watcherWatchContext.watchedBy shouldBe empty
 
-        watcheeWatchContext.watching shouldBe empty
-        watcheeWatchContext.watchedBy should have size 1
-        watcheeWatchContext.watchedBy should contain(watcherWatchContext.actor)
+      watcheeWatchContext.watching shouldBe empty
+      watcheeWatchContext.watchedBy should have size 1
+      watcheeWatchContext.watchedBy should contain(watcherWatchContext.actor)
     }
   }
 
   it should "remove non-child actor from 'terminated' queue" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 15", (_: Any) => IO.unit).allocated.map(_._1)
       watcher <- actorSystem.actorOf(Actor.ignoring[IO, DeathWatchRequest], "watcher")
       watchee <- actorSystem.actorOf(Actor.ignoring[IO, DeathWatchRequest], "watchee")
@@ -559,18 +509,17 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
       watcherWatchContext <- getWatchContext(watcher)
       watcheeWatchContext <- getWatchContext(watchee)
 
-    } yield (watcherWatchContext, watcheeWatchContext)).unsafeToFuture().map {
-      case (watcherWatchContext, watcheeWatchContext) =>
-        watcherWatchContext.watching shouldBe empty
-        watcherWatchContext.watchedBy shouldBe empty
+    } yield {
+      watcherWatchContext.watching shouldBe empty
+      watcherWatchContext.watchedBy shouldBe empty
 
-        watcheeWatchContext.watching shouldBe empty
-        watcheeWatchContext.watchedBy shouldBe empty
+      watcheeWatchContext.watching shouldBe empty
+      watcheeWatchContext.watchedBy shouldBe empty
     }
   }
 
   it should "remove watcher reference in watchee.watchedBy when watcher dies" in {
-    (for {
+    for {
       actorSystem <- ActorSystem[IO]("Death Watch 16", (_: Any) => IO.unit).allocated.map(_._1)
       parent <- actorSystem.actorOf(Actor.ignoring[IO, DeathWatchRequest], "parent")
       watcher <- createChild(parent)(Actor.ignoring[IO, DeathWatchRequest], "watcher")
@@ -583,14 +532,12 @@ class DeathWatchSpec extends AsyncFlatSpec with Matchers {
       watcherWatchContext <- getWatchContext(watcher)
       watcheeWatchContext <- getWatchContext(watchee)
 
-    } yield (watcherWatchContext, watcheeWatchContext)).unsafeToFuture().map {
-      case (watcherWatchContext, watcheeWatchContext) =>
-        watcherWatchContext.watching shouldBe empty
-        watcherWatchContext.watchedBy shouldBe empty
+    } yield {
+      watcherWatchContext.watching shouldBe empty
+      watcherWatchContext.watchedBy shouldBe empty
 
-        watcheeWatchContext.watching shouldBe empty
-        watcheeWatchContext.watchedBy shouldBe empty
-
+      watcheeWatchContext.watching shouldBe empty
+      watcheeWatchContext.watchedBy shouldBe empty
     }
   }
 

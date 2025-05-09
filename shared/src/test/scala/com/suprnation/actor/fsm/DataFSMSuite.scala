@@ -16,16 +16,14 @@
 
 package com.suprnation.actor.fsm
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.implicits._
 import com.suprnation.actor.fsm.FSM.Event
 import com.suprnation.actor.fsm.StateManager
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
 import com.suprnation.typelevel.fsm.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 sealed trait PeanoState
 case object Forever extends PeanoState
@@ -52,7 +50,7 @@ object PeanoNumbers {
       .initialize
 }
 
-class DataFSMSuite extends AsyncFlatSpec with Matchers {
+class DataFSMSuite extends CatsActorFlatSpec {
   it should "update state data" in {
     ActorSystem[IO]("FSM Actor")
       .use { actorSystem =>
@@ -68,7 +66,6 @@ class DataFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield responses
       }
-      .unsafeToFuture()
       .map { messages =>
         messages should be(List(0, 1, 2, 3))
       }
@@ -85,7 +82,6 @@ class DataFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield r0 ++ r1.flatten
       }
-      .unsafeToFuture()
       .map { messages =>
         messages.toList should be(Range.inclusive(0, 10000).toList)
       }

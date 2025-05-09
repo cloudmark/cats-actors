@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.deadletter
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, Receive}
@@ -24,9 +23,8 @@ import com.suprnation.actor._
 import com.suprnation.actor.deadletter.DeadLetterSuite.DeadLetterActor
 import com.suprnation.actor.debug.TrackingActor.ActorRefs
 import com.suprnation.actor.event.Debug
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.HashMap
 
@@ -44,7 +42,7 @@ object DeadLetterSuite {
   }
 }
 
-class DeadLetterSuite extends AsyncFlatSpec with Matchers {
+class DeadLetterSuite extends CatsActorFlatSpec {
   it should "swap mailbox when the actor is killed and forward any messages to the dead letter mailbox. (waiting)  " in {
     val numberOfMessages = 100
     val numberOfDeadLetterMessages = 1

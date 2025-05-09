@@ -22,10 +22,8 @@ import com.suprnation.actor.Actor.{Actor, ReplyingReceive}
 import com.suprnation.actor.concurrency.ConcurrencySpec.ConcurrentActorTest
 import com.suprnation.actor.ref.UnsafeRef
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
-import com.suprnation.compat.Compat
 
 object ConcurrencySpec {
 
@@ -42,7 +40,7 @@ object ConcurrencySpec {
   }
 }
 
-class ConcurrencySpec extends AsyncFlatSpec with AsyncIOSpec with Matchers {
+class ConcurrencySpec extends CatsActorFlatSpec {
   import scala.concurrent.duration.DurationInt
   it should "allow multiple messages from different actors and these should not be lost.  " in {
     (for {

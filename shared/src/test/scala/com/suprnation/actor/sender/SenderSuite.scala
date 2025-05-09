@@ -16,15 +16,13 @@
 
 package com.suprnation.actor.sender
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import com.suprnation.actor.Actor.{Actor, Receive}
 import com.suprnation.actor.ActorRef.{ActorRef, NoSendActorRef}
 import com.suprnation.actor.ActorSystem
 import com.suprnation.actor.sender.Sender.BaseActor.{Ask, BaseActorMessages, Forward, Tell}
 import com.suprnation.typelevel.actors.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
+import com.suprnation.spec.CatsActorFlatSpec
 
 object Sender {
   case class ForwardActor(
@@ -92,10 +90,10 @@ object Sender {
   }
 }
 
-class SenderSuite extends AsyncFlatSpec with Matchers {
+class SenderSuite extends CatsActorFlatSpec {
 
   it should "include itself as a sender on messages when using tell.  " in {
-    (for {
+    for {
       system <- ActorSystem[IO]("sender-system", (_: Any) => IO.unit).allocated.map(_._1)
       ref <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
       baseActor <- system.actorOf[BaseActorMessages](
@@ -113,14 +111,14 @@ class SenderSuite extends AsyncFlatSpec with Matchers {
 
       // The app actor will forward to the forward actor, let's capture the sender from that actor.
       senderActor <- ref.get
-    } yield (forwardActor, senderActor)).unsafeToFuture().map { case (appActor, senderActor) =>
+    } yield {
       assert(senderActor.isDefined)
-      assert(appActor == senderActor.get)
+      assert(forwardActor == senderActor.get)
     }
   }
 
   it should "include itself as a sender on messages when using ask.  " in {
-    (for {
+    for {
       system <- ActorSystem[IO]("sender-system-2", (_: Any) => IO.unit).allocated.map(_._1)
       sinkSenderRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
       baseActor <- system.actorOf[BaseActorMessages](
@@ -138,9 +136,9 @@ class SenderSuite extends AsyncFlatSpec with Matchers {
 
       // The app actor will forward to the forward actor, let's capture the sender from that actor.
       senderActor <- sinkSenderRef.get
-    } yield (forwardActor, senderActor)).unsafeToFuture().map { case (appActor, senderActor) =>
+    } yield {
       assert(senderActor.isDefined)
-      assert(appActor == senderActor.get)
+      assert(forwardActor == senderActor.get)
     }
   }
 
@@ -175,7 +173,6 @@ class SenderSuite extends AsyncFlatSpec with Matchers {
       forward2ReceiveRef <- ref2.get
 
     } yield (appReceiveRef, forward1ReceiveRef, forward2ReceiveRef, forwardActor1))
-      .unsafeToFuture()
       .map { case (app, forward1, forward2, sender) =>
         assert(app.isEmpty)
         assert(forward1.isDefined)

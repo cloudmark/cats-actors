@@ -16,16 +16,14 @@
 
 package com.suprnation.actor.fsm
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO, Ref}
 import cats.implicits.catsSyntaxOptionId
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
 import com.suprnation.actor.fsm.FSM.Event
 import com.suprnation.actor.fsm.{FSM, FSMConfig}
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
 import com.suprnation.typelevel.fsm.syntax.FSMStateSyntaxOps
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
@@ -79,7 +77,7 @@ object TimeoutActor {
 
 }
 
-class TimeoutFSMSuite extends AsyncFlatSpec with Matchers {
+class TimeoutFSMSuite extends CatsActorFlatSpec {
 
   it should "timeout the Awake state using the 'forMax' and go back to sleep" in {
     ActorSystem[IO]("FSM Actor")
@@ -104,7 +102,6 @@ class TimeoutFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield r0
       }
-      .unsafeToFuture()
       .map { messages =>
         messages.toList should be(List(WakingUp))
       }
@@ -132,7 +129,6 @@ class TimeoutFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield r0
       }
-      .unsafeToFuture()
       .map { messages =>
         messages should be(List(WakingUp))
       }
@@ -160,7 +156,6 @@ class TimeoutFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield r0
       }
-      .unsafeToFuture()
       .map { messages =>
         messages should be(List(WakingUp))
       }
@@ -190,7 +185,6 @@ class TimeoutFSMSuite extends AsyncFlatSpec with Matchers {
           _ <- actorSystem.waitForIdle()
         } yield r0 ++ r1
       }
-      .unsafeToFuture()
       .map { messages =>
         messages.toList should be(List(WakingUp, GotNudged))
       }

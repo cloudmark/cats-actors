@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.fsm
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.effect.std.CountDownLatch
 import cats.implicits._
@@ -30,10 +29,9 @@ import com.suprnation.actor.debug.TrackingActor
 import com.suprnation.actor.fsm.FSM.Event
 import com.suprnation.actor.sender.Sender.BaseActor.{Ask, BaseActorMessages, Forward, Tell}
 import com.suprnation.actor.test.TestKit
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax._
 import com.suprnation.typelevel.fsm.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
@@ -190,7 +188,7 @@ object FSMTimingSpec extends TestKit {
   }
 }
 
-class FSMTimingSpec extends AsyncFlatSpec with Matchers {
+class FSMTimingSpec extends CatsActorFlatSpec {
   import FSMTimingSpec._
 
   "A Finite State Machine" should "receive StateTimeout" in {
@@ -217,7 +215,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
           _ <- expectNoMsg(testActor, 2.seconds)
         } yield succeed
       }
-      .unsafeToFuture()
   }
 
   it should "cancel a StateTimeout" in {
@@ -244,7 +241,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
 
         } yield succeed
       }
-      .unsafeToFuture()
   }
 
   it should "allow StateTimeout override" in {
@@ -274,7 +270,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
 
         } yield succeed
       }
-      .unsafeToFuture()
   }
 
   it should "receive single-shot timer" in {
@@ -300,7 +295,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
 
         } yield succeed
       }
-      .unsafeToFuture()
   }
 
   it should "resubmit single-shot timer" in {
@@ -330,7 +324,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
 
         } yield succeed
       }
-      .unsafeToFuture()
   }
 
   it should "correctly cancel a named timer" in {
@@ -363,7 +356,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
           _ <- expectMsgs(testActor, 1.second)(Transition(TestCancelTimer, Initial))
         } yield succeed
       }
-      .unsafeToFuture()
   }
 
   it should "not get confused between named and state timers" in {
@@ -400,7 +392,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
           )
         } yield succeed
       }
-      .unsafeToFuture()
   }
 
   it should "receive and cancel a repeated timer" in {
@@ -423,7 +414,6 @@ class FSMTimingSpec extends AsyncFlatSpec with Matchers {
           messages <- testActor.messageBuffer
         } yield messages._2
       }
-      .unsafeToFuture()
       .map { case messages =>
         messages should equal(
           List(Tick, Tick, Tick, Tick, Tick, Transition(TestRepeatedTimer, Initial))

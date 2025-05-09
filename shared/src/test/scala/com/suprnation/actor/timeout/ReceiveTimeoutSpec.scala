@@ -16,14 +16,12 @@
 
 package com.suprnation.actor.timeout
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import com.suprnation.actor.Actor.ReplyingReceive
 import com.suprnation.actor._
 import com.suprnation.actor.timeout.Suspension.ConstantFlowActor.{ReceiveTimeout, _}
 import com.suprnation.actor.timeout.Suspension.constantFlowActor
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
+import com.suprnation.spec.CatsActorFlatSpec
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -70,7 +68,7 @@ object Suspension {
 
 /** This test suite is geared towards creating a realistic scenario which creates increasingly more complex systems.
   */
-class ReceiveTimeoutSpec extends AsyncFlatSpec with Matchers {
+class ReceiveTimeoutSpec extends CatsActorFlatSpec {
 
   it should "be able to receive a timeout - simple timeout case" in {
     (for {
@@ -88,7 +86,7 @@ class ReceiveTimeoutSpec extends AsyncFlatSpec with Matchers {
 
       result1 <- helloActor ? Get
       _ <- buffer.update(_ => List.empty)
-    } yield result1).unsafeToFuture().map { case (r1, b1) =>
+    } yield result1).map { case (r1, b1) =>
       r1 should be(1)
       b1 should be(List.empty)
 
@@ -128,16 +126,15 @@ class ReceiveTimeoutSpec extends AsyncFlatSpec with Matchers {
       _ <- IO.sleep(1.8 second)
       result3 <- helloActor ? Get
       _ <- buffer.update(_ => List.empty)
-    } yield (result1, result2, result3)).unsafeToFuture().map {
-      case ((r1, b1), (r2, b2), (r3, b3)) =>
-        r1 should be(1)
-        b1 should be(List(2, 1))
+    } yield (result1, result2, result3)).map { case ((r1, b1), (r2, b2), (r3, b3)) =>
+      r1 should be(1)
+      b1 should be(List(2, 1))
 
-        r2 should be(2)
-        b2 should be(List(4, 3))
+      r2 should be(2)
+      b2 should be(List(4, 3))
 
-        r3 should be(3)
-        b3 should be(List(5))
+      r3 should be(3)
+      b3 should be(List(5))
     }
   }
 
@@ -160,7 +157,7 @@ class ReceiveTimeoutSpec extends AsyncFlatSpec with Matchers {
       _ <- IO.sleep(28 millis)
       result1 <- helloActor ? Get
       _ <- buffer.update(_ => List.empty)
-    } yield result1).unsafeToFuture().map { case (r1, b1) =>
+    } yield result1).map { case (r1, b1) =>
       r1 should be(0)
       b1 should be(List(2, 1))
     }
@@ -185,7 +182,7 @@ class ReceiveTimeoutSpec extends AsyncFlatSpec with Matchers {
       _ <- IO.sleep(28 millis)
       result1 <- helloActor ? Get
       _ <- buffer.update(_ => List.empty)
-    } yield result1).unsafeToFuture().map { case (r1, b1) =>
+    } yield result1).map { case (r1, b1) =>
       r1 should be(0)
       b1 should be(List(2, 1))
     }

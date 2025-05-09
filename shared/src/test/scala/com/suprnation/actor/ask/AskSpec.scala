@@ -22,11 +22,11 @@ import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, ReplyingReceive}
 import com.suprnation.actor.{ActorSystem, ReplyingActor}
-import com.suprnation.compat.Compat
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.Assertions
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
+import com.suprnation.spec.CatsActorFlatSpec
 
 object AskSpec {
   sealed trait Input
@@ -41,14 +41,8 @@ object AskSpec {
   }
 }
 
-import cats.effect.unsafe.IORuntime
-
-class AskSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers with Assertions {
-
+class AskSpec extends CatsActorFlatSpec with Assertions {
   import AskSpec._
-
-  // override implicit def executionContext: scala.concurrent.ExecutionContext =
-  //   IORuntime.global.compute
 
   it should "return the correct response" in {
     ActorSystem[IO]("AskSpec")
@@ -85,8 +79,7 @@ class AskSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers with Assertio
 
     case class AskChildActor() extends ReplyingActor[IO, String, String] {
       override def receive: ReplyingReceive[IO, String, String] = { case "req" =>
-        println("Child actor received request")
-        Compat.sleep(childResponseDelay).as("res")
+        IO.sleep(childResponseDelay).as("res")
       }
     }
 
@@ -95,11 +88,7 @@ class AskSpec extends AsyncFlatSpec with AsyncIOSpec with Matchers with Assertio
         context
           .replyingActorOf(AskChildActor())
           .flatMap(_ ? msg)
-          // .flatMap(res => responseDeferred.complete(res))
-          .flatMap { res =>
-            println("Compling the response!")
-            responseDeferred.complete(res)
-          }
+          .flatMap(res => responseDeferred.complete(res))
       }
     }
 

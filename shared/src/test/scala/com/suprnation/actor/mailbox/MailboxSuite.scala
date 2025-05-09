@@ -16,18 +16,15 @@
 
 package com.suprnation.actor.mailbox
 
-//import cats.effect.unsafe.implicits.global
 import cats.effect.{Deferred, IO, Ref}
-import cats.effect.unsafe.IORuntime
 import cats.syntax.all._
 import com.suprnation.actor.dispatch.SystemMessage
 import com.suprnation.actor.dispatch.mailbox.Mailboxes
-import org.scalatest.flatspec.AsyncFlatSpec
+import com.suprnation.spec.CatsActorFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import cats.effect.testing.scalatest.AsyncIOSpec
 
 object MailboxSuite {
   def loopUntilTrue(effect: IO[Boolean]): IO[Unit] =
@@ -44,11 +41,8 @@ object MailboxSuite {
 
 /** This test suite is geared towards creating a realistic scenario which creates increasingly more complex systems.
   */
-class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
+class MailboxSuite extends CatsActorFlatSpec {
   type AnyWithDeferred = (Any, Option[Deferred[IO, Any]])
-
-  override implicit def executionContext: scala.concurrent.ExecutionContext =
-    IORuntime.global.compute
 
   def onSystemReceive(buffer: Ref[IO, List[Any]])(systemMessage: SystemMessage[IO]): IO[Unit] =
     buffer.update(xs => xs ++ List(systemMessage))
@@ -64,7 +58,7 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
     }
 
   it should "allow the mailbox to close" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
       f <- mailbox.processMailbox(onSystemReceive(buffer))(onUserReceive(buffer)).foreverM.start
@@ -74,13 +68,11 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- mailbox.close
       _ <- f.cancel
       result <- mailbox.isClosed
-    } yield result).map { result =>
-      result should be(true)
-    }
+    } yield result should be(true)
   }
 
   it should "process messages in sequence" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
       f <- mailbox.processMailbox(onSystemReceive(buffer))(onUserReceive(buffer)).foreverM.start
@@ -91,13 +83,11 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       result <- buffer.get
       _ <- f.cancel
 
-    } yield result).map { result =>
-      result should be(List(1, 2))
-    }
+    } yield result should be(List(1, 2))
   }
 
   it should "allow suspension of messages" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       doneFromSecond <- Deferred[IO, Any]
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
@@ -114,13 +104,12 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).map { result =>
-      result should be(List(1, 2))
-    }
+    } yield result should be(List(1, 2))
+
   }
 
   it should "allow suspension of messages multiple times" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       doneFromSecond <- Deferred[IO, Any]
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
@@ -140,13 +129,11 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).map { result =>
-      result should be(List(1, 2))
-    }
+    } yield result should be(List(1, 2))
   }
 
   it should "allow us to call resume if the system is already processing" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       done <- Deferred[IO, Any]
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
@@ -162,14 +149,11 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- mailbox.close
       _ <- f.cancel
       result <- buffer.get
-
-    } yield result).map { result =>
-      result should be(List(1, 2, 3, 4, 5))
-    }
+    } yield result should be(List(1, 2, 3, 4, 5))
   }
 
   it should "allow us to resume a suspended mailbox" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       done <- Deferred[IO, Any]
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
@@ -186,13 +170,11 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).map { result =>
-      result should be(List(1, 2, 3, 4, 5))
-    }
+    } yield result should be(List(1, 2, 3, 4, 5))
   }
 
   it should "allow us to suspend and resume" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       done <- Deferred[IO, Any]
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
@@ -209,18 +191,18 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).map { result =>
-      result should be(List(1, 2, 3, 4, 5))
-    }
+    } yield result should be(List(1, 2, 3, 4, 5))
+
   }
 
   it should "allow us to track suspension and resume and make sure they are equal (not equal)" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       done <- Deferred[IO, Any]
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
       f <- mailbox.processMailbox(onSystemReceive(buffer))(onUserReceive(buffer)).foreverM.start
       _ <- mailbox.enqueue(1 -> None)
+      _ <- IO.cede
       _ <- mailbox.suspend
       _ <- mailbox.suspend
       _ <- mailbox.enqueue(2 -> None)
@@ -234,14 +216,11 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- mailbox.close
       _ <- f.cancel
       result <- buffer.get
-
-    } yield result).map { result =>
-      result should be(List(1))
-    }
+    } yield result should be(List(1))
   }
 
   it should "allow us to track suspension and resume and make sure they are equal (equal)" in {
-    (for {
+    for {
       buffer <- Ref.of[IO, List[Any]](List.empty)
       done <- Deferred[IO, Any]
       mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
@@ -260,9 +239,7 @@ class MailboxSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
       _ <- f.cancel
       result <- buffer.get
 
-    } yield result).map { result =>
-      result should be(List(1, 2, 3, 4, 5))
-    }
+    } yield result should be(List(1, 2, 3, 4, 5))
   }
 
 }

@@ -16,7 +16,6 @@
 
 package com.suprnation.actor.supervision
 
-import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Ref}
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, Receive}
@@ -30,9 +29,8 @@ import com.suprnation.actor.supervision.SupervisionEscalation.{
   ParentActor,
   ThrowingTantrumActor
 }
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.duration._
@@ -113,12 +111,12 @@ object SupervisionEscalation {
   }
 }
 
-class SupervisionEscalation extends AsyncFlatSpec with Matchers {
+class SupervisionEscalation extends CatsActorFlatSpec {
 
   def replyActor(suffix: Int): String = s"reply-to-actor-$suffix"
 
   it should "kill the actor system when an actor escalates an error (single actor).  " in {
-    (for {
+    for {
       cache <- Ref[IO].of[Map[String, TrackingActor.ActorRefs[IO]]](
         HashMap.empty[String, TrackingActor.ActorRefs[IO]]
       )
@@ -144,14 +142,11 @@ class SupervisionEscalation extends AsyncFlatSpec with Matchers {
       _ <- exampleActor ! "please work!"
       _ <- waitForSystemStop
 
-    } yield (
-    )).unsafeToFuture().map { case () =>
-      1 should be(1)
-    }
+    } yield 1 should be(1)
   }
 
   it should "kill the actor system and all actors when system is shutting down" in {
-    (for {
+    for {
       cache <- Ref[IO].of[Map[String, TrackingActor.ActorRefs[IO]]](
         HashMap.empty[String, TrackingActor.ActorRefs[IO]]
       )
@@ -183,14 +178,11 @@ class SupervisionEscalation extends AsyncFlatSpec with Matchers {
       _ <- childActor3 ! "hello"
       _ <- exampleActor ! "please work!"
       _ <- waitForSystemStop
-    } yield (
-    )).unsafeToFuture().map { case () =>
-      1 should be(1)
-    }
+    } yield 1 should be(1)
   }
 
   it should "if a single actor dies in a (1 level) hierarchy we should kill the whole hierarchy. " in {
-    (for {
+    for {
       cache <- Ref[IO].of[Map[String, TrackingActor.ActorRefs[IO]]](
         HashMap.empty[String, TrackingActor.ActorRefs[IO]]
       )
@@ -212,14 +204,11 @@ class SupervisionEscalation extends AsyncFlatSpec with Matchers {
       _ <- IO.race(IO.sleep(2 second), waitForSystemStop)
       _ <- grandParent ! "die nannu"
       _ <- waitForSystemStop
-    } yield (
-    )).unsafeToFuture().map { case () =>
-      1 should be(1)
-    }
+    } yield 1 should be(1)
   }
 
   it should "if a single actor dies in a (2 level) hierarchy we should kill the whole hierarchy. " in {
-    (for {
+    for {
       cache <- Ref[IO].of[Map[String, TrackingActor.ActorRefs[IO]]](
         HashMap.empty[String, TrackingActor.ActorRefs[IO]]
       )
@@ -241,10 +230,7 @@ class SupervisionEscalation extends AsyncFlatSpec with Matchers {
       _ <- IO.race(IO.sleep(2 second), waitForSystemStop)
       _ <- grandParent ! "die nannu"
       _ <- waitForSystemStop
-    } yield (
-    )).unsafeToFuture().map { case () =>
-      1 should be(1)
-    }
+    } yield 1 should be(1)
   }
 
   it should "terminate the Actor System when an ActorInitializationException is thrown with default supervision" in {
@@ -265,7 +251,6 @@ class SupervisionEscalation extends AsyncFlatSpec with Matchers {
       .recover { case exception: ActorInitializationException[IO] =>
         exception.cause shouldBe a[RuntimeException]
       }
-      .unsafeToFuture()
   }
 
 }

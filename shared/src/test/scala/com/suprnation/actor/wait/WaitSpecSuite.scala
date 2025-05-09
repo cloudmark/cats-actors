@@ -17,15 +17,13 @@
 package com.suprnation.actor.wait
 
 import cats.effect.{IO, Ref}
-import cats.effect.unsafe.IORuntime
 import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, Receive}
 import com.suprnation.actor.ActorSystem
 import com.suprnation.actor.wait.WaitSpecSuite.{slowActor, slowActorWithForward}
+import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -68,10 +66,7 @@ object WaitSpecSuite {
     }
 }
 
-class WaitSpecSuite extends AsyncFlatSpec with AsyncIOSpec with Matchers {
-
-  override lazy val executionContext: scala.concurrent.ExecutionContext =
-    IORuntime.global.compute
+class WaitSpecSuite extends CatsActorFlatSpec {
 
   it should "be able to wait for messages to be processed" in {
     (for {
