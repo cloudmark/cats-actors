@@ -32,9 +32,6 @@ import scala.collection.immutable.Queue
 
 class BroadcastSpec extends CatsActorWordSpec with TestKit {
 
-  override implicit lazy val executionContext: scala.concurrent.ExecutionContext =
-    IORuntime.global.compute
-
   "Calling broadcast on parent" should {
     "broadcast message to children asynchronously" in {
       ActorSystem[IO]("BroadcastCatsActorTest")
