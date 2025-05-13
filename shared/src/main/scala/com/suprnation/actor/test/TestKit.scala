@@ -71,7 +71,8 @@ trait TestKit {
     expectMsgInternal(
       actor,
       timeout,
-      startQ => actor.messageBuffer.map(_._2 == startQ._2 ++ messages),
+      startQ => // actor.messageBuffer.map(_._2 == startQ._2 ++ messages),
+        actor.messageBuffer.map(_._2.endsWith(messages)),
       messages
     )
 

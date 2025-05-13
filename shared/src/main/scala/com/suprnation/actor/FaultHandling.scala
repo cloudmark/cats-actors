@@ -24,7 +24,7 @@ import com.suprnation.actor.SupervisorStrategy.{Decider, defaultDecider}
 import com.suprnation.actor.event.Logging.LogLevel
 import com.suprnation.actor.event.{Error, LogEvent, Logging}
 
-import java.lang.reflect.InvocationTargetException
+//import java.lang.reflect.InvocationTargetException
 import scala.collection.immutable
 import scala.concurrent.duration.Duration
 
@@ -163,8 +163,8 @@ abstract class SupervisionStrategy[F[+_]: Monad] {
       val logMessage: String = cause match {
         case Some(e: ActorInitializationException[?]) if e.getCause ne null =>
           e.getCause match {
-            case ex: InvocationTargetException if ex.getCause ne null => ex.getCause.getMessage
-            case ex                                                   => ex.getMessage
+            // case ex: InvocationTargetException if ex.getCause ne null => ex.getCause.getMessage
+            case ex => ex.getMessage
           }
         case Some(e: Throwable) => e.getMessage
         case _                  => "no underlying throwable"

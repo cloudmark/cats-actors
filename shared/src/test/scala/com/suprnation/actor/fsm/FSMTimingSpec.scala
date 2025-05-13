@@ -352,7 +352,8 @@ class FSMTimingSpec extends CatsActorFlatSpec {
             expectMsgs(testActor, 1.second)(Tock)
           }
 
-          _ <- fsm ! Cancel
+          _ <- (IO.sleep(50.millis) *> (fsm ! Cancel)).start
+          // _ <- fsm ! Cancel
           _ <- expectMsgs(testActor, 1.second)(Transition(TestCancelTimer, Initial))
         } yield succeed
       }
@@ -374,6 +375,7 @@ class FSMTimingSpec extends CatsActorFlatSpec {
           fsm <- system.replyingActorOf(stateMachine(proxyActor))
 
           _ <- fsm ! TestCancelStateTimerInNamedTimerMessage
+          // _ <- (IO.sleep(50.millis) *> (proxyActor ! Send(Tick, fsm))).start
           _ <- proxyActor ! Send(Tick, fsm)
           _ <- expectMsgs(testActor, 500.millis)(List(Tick))
           _ <- IO.sleep(200.millis) // this is ugly: need to wait for StateTimeout to be queued
@@ -385,7 +387,7 @@ class FSMTimingSpec extends CatsActorFlatSpec {
             )
           )
           _ <- proxyActor ! Send(Cancel, fsm)
-
+          // _ <- (IO.sleep(50.millis) *> (proxyActor ! Send(Cancel, fsm))).start
           _ <- expectMsgs(testActor, 500.millis)(
             List(Cancel),
             Transition(TestCancelStateTimerInNamedTimerMessage2, Initial)

@@ -23,8 +23,7 @@ import cats.effect.implicits._
 import scala.concurrent.duration.FiniteDuration
 
 case class Scheduler[F[+_]: Async](scheduled: Ref[F, Int]) {
-  def isIdle: F[Boolean] =
-    scheduled.get.map(_ == 0)
+  def isIdle: F[Boolean] = scheduled.get.map(_ == 0)
 
   /** Schedules a Runnable to be run once with a delay, i.e. a time period that has to pass before the runnable is executed.
     *
@@ -34,10 +33,7 @@ case class Scheduler[F[+_]: Async](scheduled: Ref[F, Int]) {
     *   the effect to run
     */
   def scheduleOnce[A](initialDelay: FiniteDuration)(fa: => F[A]): F[A] =
-    scheduled.update(_ + 1) >>
-      fa.delayBy(initialDelay)
-        .attemptTap(_ => scheduled.update(_ - 1))
-        .onCancel(scheduled.update(_ - 1))
+    schedule(fa.delayBy(initialDelay))
 
   /** The schedule once here will not wait for the result and will run the result in a fibre.
     *
@@ -49,11 +45,7 @@ case class Scheduler[F[+_]: Async](scheduled: Ref[F, Int]) {
     *   the effect to run
     */
   def scheduleOnce_[A](initialDelay: FiniteDuration)(fa: => F[A]): F[Fiber[F, Throwable, A]] =
-    scheduled.update(_ + 1) >>
-      fa.delayBy(initialDelay)
-        .attemptTap(_ => scheduled.update(_ - 1))
-        .onCancel(scheduled.update(_ - 1))
-        .start
+    schedule(fa.delayBy(initialDelay)).start
 
   /** Schedules a `Runnable` to be run repeatedly with an initial delay and
     * a fixed `delay` between subsequent executions. E.g. if you would like the function to
@@ -78,11 +70,12 @@ case class Scheduler[F[+_]: Async](scheduled: Ref[F, Int]) {
   def scheduleWithFixedDelay[A](initialDelay: FiniteDuration, delay: FiniteDuration)(
       fa: => F[A]
   ): F[Fiber[F, Throwable, Unit]] =
-    scheduled.update(_ + 1) >>
-      fa.andWait(delay)
-        .foreverM
-        .delayBy(initialDelay)
-        .attemptTap((_: Either[Throwable, Unit]) => scheduled.update(_ - 1))
-        .onCancel(scheduled.update(_ - 1))
-        .start
+    schedule(fa.andWait(delay).foreverM.delayBy(initialDelay)).start
+
+  private def schedule[A](fa: => F[A]): F[A] =
+    Async[F].uncancelable { poll =>
+      scheduled.update(_ + 1) >> poll(fa).guarantee(
+        scheduled.update(_ - 1)
+      )
+    }
 }

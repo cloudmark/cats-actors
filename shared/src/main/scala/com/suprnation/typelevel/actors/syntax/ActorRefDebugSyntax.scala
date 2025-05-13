@@ -37,7 +37,7 @@ object ActorRefDebugSyntax {
             if (idle) {
               deferred.complete(()).void // Complete the Deferred when the system is idle
             } else {
-              Temporal[F].sleep(100 millis) >> waitForIdle // Wait for a bit and check again
+              Temporal[F].sleep(50 millis) *> waitForIdle // Wait for a bit and check again
             }
         } yield ()
       waitForIdle.start.as(
@@ -66,7 +66,7 @@ trait ActorRefDebugSyntax {
         .sequence
 
     def waitForIdle(checkSchedulerIdle: Boolean): F[Unit] =
-      actorRefs.waitForIdleDeferred(checkSchedulerIdle).flatMap(_.get)
+      actorRefs.waitForIdleDeferred(checkSchedulerIdle).flatMap(x => Concurrent[F].cede *> x.get)
 
     def waitForIdleDeferred(checkSchedulerIdle: Boolean): F[Deferred[F, Unit]] = {
       def checkIfMailboxIdle(): F[Unit] = actorRefs.parTraverse_(_.waitForIdle)

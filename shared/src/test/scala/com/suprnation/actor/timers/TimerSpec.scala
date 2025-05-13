@@ -48,18 +48,18 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
   val cancelTimerA: CancelTimer = CancelTimer("KeyA")
 
   it should "schedule a single message" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(actorSystem, parentActor, trackerActor) =>
         (parentActor ! startTimerA) >>
           expectMsgSet(trackerActor, 150.millis)(Seq(startTimerA, counterAddA): _*) >>
           actorSystem.waitForIdle(maxTimeout = 500.millis).void
       }
 
-    count shouldEqual 1
+    count.map(_ shouldEqual 1)
   }
 
   it should "schedule repeated messages" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(actorSystem, parentActor, trackerActor) =>
         val startFixedDelayTimer = StartFixedDelayTimer("KeyA", 150.millis)
 
@@ -69,11 +69,11 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           actorSystem.waitForIdle(maxTimeout = 500.millis).void
       }
 
-    count shouldEqual 3
+    count.map(_ shouldEqual 3)
   }
 
   it should "schedule repeated messages after initial delay" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(actorSystem, parentActor, trackerActor) =>
         val startFixedAfterInitialDelayTimer =
           StartFixedAfterInitialDelayTimer("KeyA", initialDelay = 100.millis, 300.millis)
@@ -86,11 +86,11 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           actorSystem.waitForIdle(maxTimeout = 500.millis).void
       }
 
-    count shouldEqual 3
+    count.map(_ shouldEqual 3)
   }
 
   it should "do nothing before initial delay has elapsed" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(actorSystem, parentActor, trackerActor) =>
         val startFixedAfterInitialDelayTimer =
           StartFixedAfterInitialDelayTimer("KeyA", initialDelay = 1.second, 100.millis)
@@ -102,11 +102,11 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           actorSystem.waitForIdle(maxTimeout = 500.millis).void
       }
 
-    count shouldEqual 0
+    count.map(_ shouldEqual 0)
   }
 
   it should "replace timers with the same key" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(actorSystem, parentActor, trackerActor) =>
         (parentActor ! startTimerA) >>
           (parentActor ! startTimerA) >>
@@ -115,11 +115,11 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           actorSystem.waitForIdle(maxTimeout = 500.millis).void
       }
 
-    count shouldEqual 1
+    count.map(_ shouldEqual 1)
   }
 
   it should "support timers with different keys" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(actorSystem, parentActor, trackerActor) =>
         val startTimerB = StartSingleTimer("KeyB", 150.millis)
         (parentActor ! startTimerA) >>
@@ -131,11 +131,11 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           actorSystem.waitForIdle(maxTimeout = 500.millis).void
       }
 
-    count shouldEqual 2
+    count.map(_ shouldEqual 2)
   }
 
   it should "cancel timers" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(actorSystem, parentActor, trackerActor) =>
         (parentActor ! startTimerA) >>
           (parentActor ! cancelTimerA) >>
@@ -143,33 +143,33 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           actorSystem.waitForIdle(maxTimeout = 500.millis).void
       }
 
-    count shouldEqual 0
+    count.map(_ shouldEqual 0)
   }
 
   it should "cancel all timers on restart" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(_, parentActor, trackerActor) =>
         (parentActor ! startTimerA) >>
           (parentActor ! RestartCommand) >>
           expectMsgSet(trackerActor, 500.millis)(Seq(startTimerA, RestartCommand): _*)
       }
 
-    count shouldEqual 0
+    count.map(_ shouldEqual 0)
   }
 
   it should "cancel all timers on stop" in {
-    val count: Int =
+    val count =
       fixture(TimedActor.apply) { case FixtureParams(_, parentActor, trackerActor) =>
         (parentActor ! startTimerA) >>
           (parentActor ! StopCommand) >>
           expectMsgSet(trackerActor, 500.millis)(Seq(startTimerA, StopCommand): _*)
       }
 
-    count shouldEqual 0
+    count.map(_ shouldEqual 0)
   }
 
   it should "support replying actors" in {
-    val count: Int =
+    val count =
       fixture(ReplyingTimedActor.apply) {
         case FixtureParams(actorSystem, parentActor, trackerActor) =>
           for {
@@ -179,7 +179,7 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           } yield reply shouldEqual Ok
       }
 
-    count shouldEqual 1
+    count.map(_ shouldEqual 1)
   }
 
   private case class FixtureParams[Response](
@@ -194,7 +194,7 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
           Ref[IO, Int],
           Ref[IO, Timers.TimerMap[IO, String]]
       ) => ReplyingActor[IO, TimerMsg, Response]
-  )(test: FixtureParams[Any] => IO[Unit]): Int = {
+  )(test: FixtureParams[Any] => IO[Unit]): IO[Int] = {
 
     def deadLetterListener(countRef: Ref[IO, Int]): Any => IO[Unit] = {
       case Debug(_, _, DeadLetter(_, _, _)) =>
@@ -238,7 +238,6 @@ class TimerSpec extends CatsActorFlatSpec with TestKit {
             } yield count
           }
       }
-      .unsafeRunSync()
   }
 
 }

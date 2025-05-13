@@ -81,9 +81,8 @@ class ReceiveTimeoutSpec extends CatsActorFlatSpec {
         name = "hello-actor"
       )
       _ <- IO.sleep(
-        1 second
+        1.1 second
       ) // timeout processing is tight with ping event that is emitted every 1s, so let the event some space at the beginning
-
       result1 <- helloActor ? Get
       _ <- buffer.update(_ => List.empty)
     } yield result1).map { case (r1, b1) =>

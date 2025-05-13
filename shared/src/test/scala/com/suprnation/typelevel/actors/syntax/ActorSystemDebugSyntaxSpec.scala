@@ -94,7 +94,6 @@ class ActorSystemDebugSyntaxSpec extends CatsActorFlatSpec {
             IO.sleep(300 millis) *> deferred.complete(())
           })
           _ <- actorRef ! "Greetings"
-
           _ <- actorSystem.waitForIdle(maxTimeout = 500 millis)
 
           // Race deferred.get (which should complete after receive) with a fail

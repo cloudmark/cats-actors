@@ -24,8 +24,6 @@ import com.suprnation.actor.Actor.{Actor, Receive, ReplyingReceive}
 import com.suprnation.actor.ActorRef.NoSendActorRef
 import com.suprnation.actor.utils.IdGen
 
-//import java.util.UUID
-
 object Behaviour {
   def emptyBehavior[F[+_]: MonadThrow, Request, Response]: PartialFunction[Request, F[Response]] =
     new ReplyingReceive[F, Request, Response] {

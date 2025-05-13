@@ -23,9 +23,10 @@ import com.suprnation.actor.ActorRef.ActorRef
 import com.suprnation.actor._
 import com.suprnation.typelevel.actors.syntax._
 
-import java.util
-import java.util.concurrent.LinkedTransferQueue
-import scala.annotation.tailrec
+//import java.util
+//import java.util.concurrent.LinkedTransferQueue
+//import scala.annotation.tailrec
+import cats.effect.std.Queue
 
 object Mailboxes {
 
@@ -118,12 +119,14 @@ object Mailboxes {
   ): F[Mailbox[F, SystemMessage, A]] = {
     for {
       lock <- Semaphore[F](1)
+      userQueue <- Queue.unbounded[F, A]
+      systemQueue <- Queue.unbounded[F, SystemMessage]
     } yield {
       new Mailbox[F, SystemMessage, A] {
         var processing: Boolean = false
         var isShutDown: Boolean = false
-        val userQueue: util.Queue[A] = new LinkedTransferQueue[A]()
-        val systemQueue: util.Queue[SystemMessage] = new LinkedTransferQueue[SystemMessage]()
+        // val userQueue: util.Queue[A] = new LinkedTransferQueue[A]()
+        // val systemQueue: util.Queue[SystemMessage] = new LinkedTransferQueue[SystemMessage]()
         var deferred: Deferred[F, Unit] = null
         var systemDeferred: Deferred[F, Unit] = null
         var _flag: Option[Deferred[F, Unit]] = None
@@ -132,25 +135,29 @@ object Mailboxes {
         var pendingSuspensions = 0
 
         @inline final def processBlock[B](block: => F[B]): F[B] =
-          Async[F].delay { processing = true } >> block <* Async[F].delay { processing = false }
+          Async[F].delay { processing = true } >>
+            Async[F].guarantee(block, Async[F].delay { processing = false })
+        // Async[F].delay { processing = true } >> block <* Async[F].delay { processing = false }
 
-        @inline def dequeueAll[T](queue: util.Queue[T]): F[Seq[T]] = {
-          @tailrec
-          def dequeueAllLoop(result: List[T]): List[T] = {
-            val v = queue.poll()
-            if (v == null) {
-              result
-            } else {
-              dequeueAllLoop(result.prepended(v))
-            }
-          }
-          Sync[F].delay(
-            dequeueAllLoop(List.empty).reverse
-          ) // Dequeues all elements. Adjust condition if necessary.
-        }
+        @inline def dequeueAll[T](queue: Queue[F, T]): F[Seq[T]] = queue.tryTakeN(None)
 
-        @inline final def tryDequeue[T](queue: util.Queue[T]): F[Option[T]] =
-          Sync[F].delay(Option(queue.poll()))
+        // @inline def dequeueAll[T](queue: util.Queue[T]): F[Seq[T]] = {
+        //   @tailrec
+        //   def dequeueAllLoop(result: List[T]): List[T] = {
+        //     val v = queue.poll()
+        //     if (v == null) {
+        //       result
+        //     } else {
+        //       dequeueAllLoop(result.prepended(v))
+        //     }
+        //   }
+        //   Sync[F].delay(
+        //     dequeueAllLoop(List.empty).reverse
+        //   ) // Dequeues all elements. Adjust condition if necessary.
+        // }
+
+        // @inline final def tryDequeue[T](queue: util.Queue[T]): F[Option[T]] =
+        //   Sync[F].delay(Option(queue.poll()))
 
         override def cleanup(onMessage: Either[SystemMessage, A] => F[Unit]): F[Unit] =
           // Perhaps one should ensure that we are closed.
@@ -160,9 +167,10 @@ object Mailboxes {
             dequeueAll(userQueue).flatMap(messages => messages.traverse_(u => onMessage(Right(u))))
 
         @inline override def systemEnqueue(invocation: SystemMessage): F[Unit] =
-          Async[F].delay {
-            systemQueue.add(invocation)
-          } >>
+          // Async[F].delay {
+          //   systemQueue.add(invocation)
+          // } >>
+          systemQueue.tryOffer(invocation) >>
             (if (deferred != null) {
                deferred.complete(()).void
              } else Async[F].unit) >>
@@ -173,36 +181,39 @@ object Mailboxes {
             }
 
         @inline override def enqueue(msg: A): F[Unit] =
-          Async[F].delay {
-            userQueue.add(msg)
-          } >> (if (deferred != null) {
+          // Async[F].delay {
+          //   userQueue.add(msg)
+          // }
+          userQueue.tryOffer(msg)
+            >> (if (deferred != null) {
                   deferred.complete(()).void
                 } else Async[F].unit)
 
         @inline override val dequeue: F[A] =
-          Async[F].delay {
-            userQueue.poll()
-          }
+          userQueue.take // not sure if blocking here is a good idea
+        // Async[F].delay {
+        //   userQueue.poll()
+        // }
 
-        @inline override val tryDequeue: F[Option[A]] =
-          tryDequeue(userQueue)
+        @inline override val tryDequeue: F[Option[A]] = userQueue.tryTake
+        // tryDequeue(userQueue)
 
         @inline def deadLockCheck: F[Boolean] = true.pure[F]
 
-        @inline override val hasMessage: F[Boolean] =
-          Async[F].delay {
-            !userQueue.isEmpty
-          }
+        @inline override val hasMessage: F[Boolean] = userQueue.size.map(_ > 0)
+        // Async[F].delay {
+        //   !userQueue.isEmpty
+        // }
 
-        @inline override val hasSystemMessage: F[Boolean] =
-          Async[F].delay {
-            !systemQueue.isEmpty
-          }
+        @inline override val hasSystemMessage: F[Boolean] = systemQueue.size.map(_ > 0)
+        // Async[F].delay {
+        //   !systemQueue.isEmpty
+        // }
 
-        @inline override val numberOfMessages: F[Int] =
-          Async[F].delay {
-            userQueue.size
-          }
+        @inline override val numberOfMessages: F[Int] = userQueue.size
+        // Async[F].delay {
+        //   userQueue.size
+        // }
 
         @inline override val suspendCount: F[Int] =
           Async[F].delay {
@@ -244,7 +255,8 @@ object Mailboxes {
             onMessage: SystemMessage => F[Unit]
         ): F[List[SystemMessage]] = {
           def loop(acc: List[SystemMessage]): F[List[SystemMessage]] =
-            tryDequeue(systemQueue).flatMap {
+            // tryDequeue(systemQueue).flatMap {
+            systemQueue.tryTake.flatMap {
               case Some(message) =>
                 onMessage(message) >> loop(message :: acc)
               case None =>
@@ -259,7 +271,8 @@ object Mailboxes {
           for {
             _ <- Sync[F]
               .tailRecM[Unit, Unit](())(_ =>
-                tryDequeue(systemQueue)
+                // tryDequeue(systemQueue)
+                systemQueue.tryTake
                   .flatMap(_.traverse(sM => processBlock(onSystemMessage(sM))))
                   .map(o => if (o.isDefined) Left(()) else Right(()))
               )
@@ -275,11 +288,15 @@ object Mailboxes {
                     } >> Async[F].race(systemDeferred.get, f.get).void
 
                   case None =>
-                    tryDequeue(userQueue).flatMap(_.traverse(uM => processBlock(onUserMessage(uM))))
+                    // tryDequeue(userQueue).flatMap(_.traverse(uM => processBlock(onUserMessage(uM))))
+                    userQueue.tryTake.flatMap(_.traverse(uM => processBlock(onUserMessage(uM))))
                 }
               }
+            systemQueueIsEmpty <- systemQueue.size.map(_ == 0)
+            userQueueIsEmpty <- userQueue.size.map(_ == 0)
             _ <- Sync[F]
-              .whenA(systemQueue.isEmpty && userQueue.isEmpty)(
+              // .whenA(systemQueue.isEmpty && userQueue.isEmpty)(
+              .whenA(systemQueueIsEmpty && userQueueIsEmpty)(
                 // Note that here we run lock free, this is because we are guaranteed to receive the ping in this scenario
                 // so even though we might have missed this update we will get it in the next ping.
                 Deferred[F, Unit].map(d => deferred = d) >> deferred.get
