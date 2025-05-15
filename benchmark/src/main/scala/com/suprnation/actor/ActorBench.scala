@@ -29,9 +29,9 @@ class ActorBench extends ActorJmhSupport[ReplyingActorRef[IO, Input, Int]] {
   }
 
   @Benchmark
-  @Warmup(iterations = 1, time = 500, timeUnit = TimeUnit.MILLISECONDS)
-  @Measurement(iterations = 3, time = 1000, timeUnit = TimeUnit.MILLISECONDS)
-  @Fork(0)
+//   @Warmup(iterations = 1, time = 500, timeUnit = TimeUnit.MILLISECONDS)
+//   @Measurement(iterations = 3, time = 1000, timeUnit = TimeUnit.MILLISECONDS)
+//   @Fork(0)
   def ask(): Unit = bench { (system, actor) =>
     for {
       _ <- actor ? Hi(1234)
