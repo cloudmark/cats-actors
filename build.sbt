@@ -10,6 +10,16 @@ ThisBuild / licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICE
 ThisBuild / crossScalaVersions := Seq("2.13.16", "3.3.4")
 ThisBuild / scalaVersion := crossScalaVersions.value.head
 
+lazy val benchmark = project
+  .in(file("benchmark/"))
+  .dependsOn(root)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    name := "cats-actors-benchmark",
+    scalaVersion := "3.3.4",
+    libraryDependencies ++= Seq()
+  )
+
 lazy val commonSettings = Seq(
   Test / parallelExecution := false,
   libraryDependencies ++= Seq(
@@ -52,7 +62,6 @@ lazy val root = (project in file("."))
   .settings(commonSettings)
   .settings(
     name := "cats-actors",
-
     Compile / unmanagedSourceDirectories ++= Seq(
       baseDirectory.value / "src" / "main" / "scala"
     ),
@@ -64,8 +73,8 @@ lazy val root = (project in file("."))
       val artPath = (Compile / packageBin / artifactPath).value
       val scalaVer = scalaBinaryVersion.value match {
         case "2.13" => "2_13"
-        case "3" => "3"
-        case other => other.replace('.', '_')
+        case "3"    => "3"
+        case other  => other.replace('.', '_')
       }
       file(s"${artPath.getParent}/cats-actors_${scalaVer}-${version.value}.jar")
     },
@@ -74,8 +83,8 @@ lazy val root = (project in file("."))
       val artPath = (Compile / packageSrc / artifactPath).value
       val scalaVer = scalaBinaryVersion.value match {
         case "2.13" => "2_13"
-        case "3" => "3"
-        case other => other.replace('.', '_')
+        case "3"    => "3"
+        case other  => other.replace('.', '_')
       }
       file(s"${artPath.getParent}/cats-actors_${scalaVer}-${version.value}-sources.jar")
     },
@@ -83,8 +92,8 @@ lazy val root = (project in file("."))
       val artPath = (Compile / packageDoc / artifactPath).value
       val scalaVer = scalaBinaryVersion.value match {
         case "2.13" => "2_13"
-        case "3" => "3"
-        case other => other.replace('.', '_')
+        case "3"    => "3"
+        case other  => other.replace('.', '_')
       }
       file(s"${artPath.getParent}/cats-actors_${scalaVer}-${version.value}-javadoc.jar")
     }
