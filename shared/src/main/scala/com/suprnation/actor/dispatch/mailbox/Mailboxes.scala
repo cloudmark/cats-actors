@@ -23,10 +23,6 @@ import com.suprnation.actor.ActorRef.ActorRef
 import com.suprnation.actor._
 import com.suprnation.typelevel.actors.syntax._
 
-//import java.util
-//import java.util.concurrent.LinkedTransferQueue
-//import scala.annotation.tailrec
-import cats.effect.std.Queue
 
 object Mailboxes {
 
@@ -119,8 +115,8 @@ object Mailboxes {
   ): F[Mailbox[F, SystemMessage, A]] = {
     for {
       lock <- Semaphore[F](1)
-      userQueue <- Queue.unbounded[F, A]
-      systemQueue <- Queue.unbounded[F, SystemMessage]
+      userQueue <- MailboxQueues.create[F, A]
+      systemQueue <- MailboxQueues.create[F, SystemMessage]
     } yield {
       new Mailbox[F, SystemMessage, A] {
         var processing: Boolean = false
@@ -139,7 +135,7 @@ object Mailboxes {
             Async[F].guarantee(block, Async[F].delay { processing = false })
         // Async[F].delay { processing = true } >> block <* Async[F].delay { processing = false }
 
-        @inline def dequeueAll[T](queue: Queue[F, T]): F[Seq[T]] = queue.tryTakeN(None)
+        @inline def dequeueAll[T](queue: MailboxQueue[F, T]): F[Seq[T]] = queue.tryTakeN(None)
 
         // @inline def dequeueAll[T](queue: util.Queue[T]): F[Seq[T]] = {
         //   @tailrec

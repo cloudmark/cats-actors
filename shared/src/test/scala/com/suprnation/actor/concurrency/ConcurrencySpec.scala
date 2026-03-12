@@ -43,32 +43,33 @@ object ConcurrencySpec {
 class ConcurrencySpec extends CatsActorFlatSpec {
   import scala.concurrent.duration.DurationInt
   it should "allow multiple messages from different actors and these should not be lost.  " in {
-    (for {
-      system <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).allocated.map(_._1)
-      incrA <- UnsafeRef.of[IO, Int](0)
-      incrB <- UnsafeRef.of[IO, Int](0)
-      incrC <- UnsafeRef.of[IO, Int](0)
+    ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).use{ system =>
+      (for {
+        incrA <- UnsafeRef.of[IO, Int](0)
+        incrB <- UnsafeRef.of[IO, Int](0)
+        incrC <- UnsafeRef.of[IO, Int](0)
 
-      calculator <- system.replyingActorOf(new ConcurrentActorTest(incrA, incrB, incrC))
-      _ <- system.actorOf[Nothing](new Actor[IO, Nothing] {
-        override def preStart: IO[Unit] = (calculator ! "a").replicateA_(10000).start.void
-      })
-      _ <- system.actorOf[Nothing](new Actor[IO, Nothing] {
-        override def preStart: IO[Unit] = (calculator ! "b").replicateA_(10000).start.void
-      })
-      _ <- system.actorOf[Nothing](new Actor[IO, Nothing] {
-        override def preStart: IO[Unit] = (calculator ! "c").replicateA_(10000).start.void
-      })
+        calculator <- system.replyingActorOf(new ConcurrentActorTest(incrA, incrB, incrC))
+        _ <- system.actorOf[Nothing](new Actor[IO, Nothing] {
+          override def preStart: IO[Unit] = (calculator ! "a").replicateA_(10000).start.void
+        })
+        _ <- system.actorOf[Nothing](new Actor[IO, Nothing] {
+          override def preStart: IO[Unit] = (calculator ! "b").replicateA_(10000).start.void
+        })
+        _ <- system.actorOf[Nothing](new Actor[IO, Nothing] {
+          override def preStart: IO[Unit] = (calculator ! "c").replicateA_(10000).start.void
+        })
 
-      _ <- system.waitForIdle()
-      a <- incrA.get
-      b <- incrB.get
-      c <- incrC.get
+        _ <- system.waitForIdle()
+        a <- incrA.get
+        b <- incrB.get
+        c <- incrC.get
 
-    } yield (a, b, c)).map { case (a, b, c) =>
-      a should be(10000)
-      b should be(10000)
-      c should be(10000)
+      } yield (a, b, c)).map { case (a, b, c) =>
+        a should be(10000)
+        b should be(10000)
+        c should be(10000)
+      }
     }
   }
 }

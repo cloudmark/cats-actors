@@ -29,37 +29,41 @@ class LogicCircuitSpec extends CatsActorFlatSpec with SimConfig {
   val pertuberation: Int = 2
 
   "Wire" should "return value" in {
-    for {
-      actorSystem <- ActorSystem[IO]("Logic Circuits", (_: Any) => IO.unit).allocated.map(_._1)
-      input <- actorSystem.actorOf(Wire(false), "in0")
-      probe <- actorSystem.actorOf(Probe(input), "probe0")
+    ActorSystem[IO]("Logic Circuits", (_: Any) => IO.unit).use{ actorSystem =>
+      for {
+        input <- actorSystem.actorOf(Wire(false), "in0")
+        probe <- actorSystem.actorOf(Probe(input), "probe0")
 
-      _ <- input ! true
-      result1 <- probe.narrowResponse[Boolean] ? GetValue
-      _ <- input ! false
-      result2 <- probe.narrowResponse[Boolean] ? GetValue
-    } yield {
-      result1 should be(true)
-      result2 should be(false)
+        _ <- input ! true
+        result1 <- probe.narrowResponse[Boolean] ? GetValue
+        _ <- input ! false
+        result2 <- probe.narrowResponse[Boolean] ? GetValue
+      } yield {
+        result1 should be(true)
+        result2 should be(false)
+      }
     }
   }
 
   "Debug" should "allow us to debug the system" in {
     for {
       debugMessage <- Ref.of[IO, Option[String]](None)
-      system <- ActorSystem[IO](
+      result <- ActorSystem[IO](
         "Logic Circuits",
         (event: Any) => debugMessage.set(Some(event.toString))
-      ).allocated.map(_._1)
-      input <- system.actorOfWithDebug(Wire(false), "in0")
-      _ <- input ! true
-      result <- input.narrowResponse[Boolean] ? GetValue
-      _ <- system.waitForIdle()
-      debugMessage <- debugMessage.get
+      ).use{ system =>
+        for {
+          input <- system.actorOfWithDebug(Wire(false), "in0")
+          _ <- input ! true
+          result <- input.narrowResponse[Boolean] ? GetValue
+          _ <- system.waitForIdle()
+        } yield result
+      }
+      debugMsg <- debugMessage.get
     } yield {
       result should be(true)
-      debugMessage should not be None
-      debugMessage should be(
+      debugMsg should not be None
+      debugMsg should be(
         Some(
           "Debug([Path: kukku://logic-circuits@localhost/user/debug-in0] [Name:debug-in0],class com.suprnation.actor.ReplyingActor,~~ redirect ~~>: [Name: in0] [Path: kukku://logic-circuits@localhost/user/in0]] GetValue)"
         )
@@ -68,390 +72,398 @@ class LogicCircuitSpec extends CatsActorFlatSpec with SimConfig {
   }
 
   "A Not gate" should "not the result from an up stream stimulus" in {
-    for {
-      actorSystem <- ActorSystem[IO]("Inverter Circuit", (_: Any) => IO.unit).allocated.map(_._1)
+    ActorSystem[IO]("Inverter Circuit", (_: Any) => IO.unit).use{ actorSystem =>
+      for {
+        input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
+        output0 <- actorSystem.actorOfWithDebug(Wire(false), "out0")
+        _ <- actorSystem.actorOfWithDebug(Inverter(input0, output0), "inverter")
 
-      input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
-      output0 <- actorSystem.actorOfWithDebug(Wire(false), "out0")
-      _ <- actorSystem.actorOfWithDebug(Inverter(input0, output0), "inverter")
+        _ <- actorSystem.waitForIdle()
 
-      _ <- actorSystem.waitForIdle()
+        //  Scenario 1 [Input: True] [Output: False]
+        _ <- input0 ! true
+        _ <- actorSystem.waitForIdle()
+        res1 <- output0.narrowResponse[Boolean] ? GetValue
 
-      //  Scenario 1 [Input: True] [Output: False]
-      _ <- input0 ! true
-      _ <- actorSystem.waitForIdle()
-      res1 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 2 [Input: False] [Output: True]"
+        _ <- input0 ! false
+        _ <- actorSystem.waitForIdle()
+        res2 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 2 [Input: False] [Output: True]"
-      _ <- input0 ! false
-      _ <- actorSystem.waitForIdle()
-      res2 <- output0.narrowResponse[Boolean] ? GetValue
-
-    } yield {
-      res1 should be(false)
-      res2 should be(true)
+      } yield {
+        res1 should be(false)
+        res2 should be(true)
+      }
     }
   }
 
   "An And gate system (with probes)" should "behave as an And gate to the wire stimuli" in {
-    for {
-      // AND Circuit
-      system <- ActorSystem[IO]("AND Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
-      input0 <- system.actorOfWithDebug(Wire(false), "in0")
-      probe0 <- system.actorOfWithDebug(Probe(input0), "probeIn0")
+    ActorSystem[IO]("AND Logic Circuit", (_: Any) => IO.unit).use{ system =>
+      for {
+        // AND Circuit
+        input0 <- system.actorOfWithDebug(Wire(false), "in0")
+        probe0 <- system.actorOfWithDebug(Probe(input0), "probeIn0")
 
-      input1 <- system.actorOfWithDebug(Wire(false), "in1")
-      probe1 <- system.actorOfWithDebug(Probe(input1), "probeIn1")
+        input1 <- system.actorOfWithDebug(Wire(false), "in1")
+        probe1 <- system.actorOfWithDebug(Probe(input1), "probeIn1")
 
-      output0 <- system.actorOfWithDebug(Wire(false), "output0")
-      probeOut0 <- system.actorOfWithDebug(Probe(output0), "probeOut0")
+        output0 <- system.actorOfWithDebug(Wire(false), "output0")
+        probeOut0 <- system.actorOfWithDebug(Probe(output0), "probeOut0")
 
-      _ <- system.actorOf(And(probe0, probe1, probeOut0), "andComponent")
-      _ <- system.waitForIdle()
+        _ <- system.actorOf(And(probe0, probe1, probeOut0), "andComponent")
+        _ <- system.waitForIdle()
 
-      // Scenario 1 [Input0: True] [Input1: False] [Output: False]
-      _ <- input0 ! true
-      _ <- system.waitForIdle()
-      res1 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 1 [Input0: True] [Input1: False] [Output: False]
+        _ <- input0 ! true
+        _ <- system.waitForIdle()
+        res1 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 2 [Input0: True] [Input1: True] [Output: True]
-      _ <- input1 ! true
-      _ <- system.waitForIdle()
-      res2 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 2 [Input0: True] [Input1: True] [Output: True]
+        _ <- input1 ! true
+        _ <- system.waitForIdle()
+        res2 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 2 [Input0: True] [Input1: False] [Output: False]
-      _ <- input1 ! false
-      _ <- system.waitForIdle()
-      res3 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 2 [Input0: True] [Input1: False] [Output: False]
+        _ <- input1 ! false
+        _ <- system.waitForIdle()
+        res3 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield {
-      res1 should be(false)
-      res2 should be(true)
-      res3 should be(false)
+      } yield {
+        res1 should be(false)
+        res2 should be(true)
+        res3 should be(false)
+      }
     }
   }
 
   "An And gate with syntactic sugar" should "behave as an And gate to the wire stimuli" in {
-    for {
-      // Creating AND Circuit
-      system <- ActorSystem[IO]("AND Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
-      input0 <- system.actorOfWithDebug(Wire(false), "in0")
-      input1 <- system.actorOfWithDebug(Wire(false), "in1")
-      output0 <- system.actorOfWithDebug(Wire(false), "output0")
-      _ <- system.actorOf(And(input0, input1, output0), "andComponent")
+    ActorSystem[IO]("AND Logic Circuit", (_: Any) => IO.unit).use{ system =>
+      for {
+        // Creating AND Circuit
+        input0 <- system.actorOfWithDebug(Wire(false), "in0")
+        input1 <- system.actorOfWithDebug(Wire(false), "in1")
+        output0 <- system.actorOfWithDebug(Wire(false), "output0")
+        _ <- system.actorOf(And(input0, input1, output0), "andComponent")
 
-      _ <- system.waitForIdle()
+        _ <- system.waitForIdle()
 
-      _ <- input0 ! true
-      _ <- system.waitForIdle()
-      res1 <- output0.narrowResponse[Boolean] ? GetValue
+        _ <- input0 ! true
+        _ <- system.waitForIdle()
+        res1 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 2 [Input0: True] [Input1: True] [Output: True]
-      _ <- input1 ! true
-      _ <- system.waitForIdle()
-      res2 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 2 [Input0: True] [Input1: True] [Output: True]
+        _ <- input1 ! true
+        _ <- system.waitForIdle()
+        res2 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 2 [Input0: True] [Input1: False] [Output: False]
-      _ <- input1 ! false
-      _ <- system.waitForIdle()
-      res3 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 2 [Input0: True] [Input1: False] [Output: False]
+        _ <- input1 ! false
+        _ <- system.waitForIdle()
+        res3 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield {
-      res1 should be(false)
-      res2 should be(true)
-      res3 should be(false)
+      } yield {
+        res1 should be(false)
+        res2 should be(true)
+        res3 should be(false)
+      }
     }
   }
 
   "An Or gate" should "behave as an Or gate to the wire stimuli" in {
-    for {
-      // Creating OR Circuit
-      actorSystem <- ActorSystem[IO]("OR Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
-      input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
-      input1 <- actorSystem.actorOfWithDebug(Wire(false), "in1")
-      output0 <- actorSystem.actorOfWithDebug(Wire(false), "output0")
-      or <- actorSystem.actorOfWithDebug(Or(input0, input1, output0), "orComponent")
+    ActorSystem[IO]("OR Logic Circuit", (_: Any) => IO.unit).use{ actorSystem =>
+      for {
+        // Creating OR Circuit
+        input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
+        input1 <- actorSystem.actorOfWithDebug(Wire(false), "in1")
+        output0 <- actorSystem.actorOfWithDebug(Wire(false), "output0")
+        or <- actorSystem.actorOfWithDebug(Or(input0, input1, output0), "orComponent")
 
-      _ <- actorSystem.waitForIdle()
+        _ <- actorSystem.waitForIdle()
 
-      // Scenario 1 [Input0: True] [Input1: False] [Output: True]
-      _ <- input0 ! true
-      _ <- actorSystem.waitForIdle()
-      res1 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 1 [Input0: True] [Input1: False] [Output: True]
+        _ <- input0 ! true
+        _ <- actorSystem.waitForIdle()
+        res1 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 2 [Input0: True] [Input1: True] [Output: True]
-      _ <- input1 ! true
-      _ <- actorSystem.waitForIdle()
-      res2 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 2 [Input0: True] [Input1: True] [Output: True]
+        _ <- input1 ! true
+        _ <- actorSystem.waitForIdle()
+        res2 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 3 [Input0: False] [Input1: True] [Output: True]
-      _ <- input0 ! false
-      _ <- actorSystem.waitForIdle()
-      res3 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 3 [Input0: False] [Input1: True] [Output: True]
+        _ <- input0 ! false
+        _ <- actorSystem.waitForIdle()
+        res3 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 4 [Input0: False] [Input1: False] [Output: False]
-      _ <- input1 ! false
-      _ <- actorSystem.waitForIdle()
-      res4 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 4 [Input0: False] [Input1: False] [Output: False]
+        _ <- input1 ! false
+        _ <- actorSystem.waitForIdle()
+        res4 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield {
-      res1 should be(true)
-      res2 should be(true)
-      res3 should be(true)
-      res4 should be(false)
+      } yield {
+        res1 should be(true)
+        res2 should be(true)
+        res3 should be(true)
+        res4 should be(false)
+      }
     }
   }
 
   "An Alternate Or gate" should "behave as an Or gate (slightly slower) to the wire stimuli" in {
-    for {
-      actorSystem <- ActorSystem[IO]("OR Logic Circuit", (_: Any) => IO.unit).allocated.map(_._1)
-      input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
-      input1 <- actorSystem.actorOfWithDebug(Wire(false), "in1")
-      output0 <- actorSystem.actorOfWithDebug(Wire(false), "output0")
-      orAlt <- actorSystem.actorOfWithDebug(
-        OrAlt(input0, input1, output0),
-        "orAltComponent"
-      )
-      _ <- actorSystem.waitForIdle()
+    ActorSystem[IO]("OR Logic Circuit", (_: Any) => IO.unit).use{ actorSystem =>
+      for {
+        input0 <- actorSystem.actorOfWithDebug(Wire(false), "in0")
+        input1 <- actorSystem.actorOfWithDebug(Wire(false), "in1")
+        output0 <- actorSystem.actorOfWithDebug(Wire(false), "output0")
+        orAlt <- actorSystem.actorOfWithDebug(
+          OrAlt(input0, input1, output0),
+          "orAltComponent"
+        )
+        _ <- actorSystem.waitForIdle()
 
-      // Scenario 1 [Input0: True] [Input1: False] [Output: True]
-      _ <- input0 ! true
-      _ <- actorSystem.waitForIdle()
-      res1 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 1 [Input0: True] [Input1: False] [Output: True]
+        _ <- input0 ! true
+        _ <- actorSystem.waitForIdle()
+        res1 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 2 [Input0: True] [Input1: True] [Output: True]
-      _ <- input1 ! true
-      _ <- actorSystem.waitForIdle()
-      res2 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 2 [Input0: True] [Input1: True] [Output: True]
+        _ <- input1 ! true
+        _ <- actorSystem.waitForIdle()
+        res2 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 3 [Input0: False] [Input1: True] [Output: True]
-      _ <- input0 ! false
-      _ <- actorSystem.waitForIdle()
-      res3 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 3 [Input0: False] [Input1: True] [Output: True]
+        _ <- input0 ! false
+        _ <- actorSystem.waitForIdle()
+        res3 <- output0.narrowResponse[Boolean] ? GetValue
 
-      // Scenario 4 [Input0: False] [Input1: False] [Output: False]
-      _ <- input1 ! false
-      _ <- actorSystem.waitForIdle()
-      res4 <- output0.narrowResponse[Boolean] ? GetValue
+        // Scenario 4 [Input0: False] [Input1: False] [Output: False]
+        _ <- input1 ! false
+        _ <- actorSystem.waitForIdle()
+        res4 <- output0.narrowResponse[Boolean] ? GetValue
 
-    } yield {
-      res1 should be(true)
-      res2 should be(true)
-      res3 should be(true)
-      res4 should be(false)
+      } yield {
+        res1 should be(true)
+        res2 should be(true)
+        res3 should be(true)
+        res4 should be(false)
+      }
     }
   }
 
   "A Half Adder" should "act like a Half Adder to the wire stimuli" in {
-    for {
-      system <- ActorSystem[IO]("Half Adder", (_: Any) => IO.unit).allocated.map(_._1)
-      a <- system.actorOfWithDebug(Wire(false), "a")
-      b <- system.actorOfWithDebug(Wire(false), "b")
-      s <- system.actorOfWithDebug(Wire(false), "s")
-      c <- system.actorOfWithDebug(Wire(false), "c")
-      _ <- system.actorOfWithDebug(HalfAdder(a, b, s, c), "halfAdder")
+    ActorSystem[IO]("Half Adder", (_: Any) => IO.unit).use{ system =>
+      for {
+        a <- system.actorOfWithDebug(Wire(false), "a")
+        b <- system.actorOfWithDebug(Wire(false), "b")
+        s <- system.actorOfWithDebug(Wire(false), "s")
+        c <- system.actorOfWithDebug(Wire(false), "c")
+        _ <- system.actorOfWithDebug(HalfAdder(a, b, s, c), "halfAdder")
 
-      _ <- system.waitForIdle()
+        _ <- system.waitForIdle()
 
-      // Send b a 1 (s should be 1 and c should be 0)
-      // Scenario A ~~~~~~~~~~~~~~~~~~~~~~
-      _ <- a ! true
-      _ <- system.waitForIdle()
-      s0 <- s.narrowResponse[Boolean] ? GetValue
-      c0 <- c.narrowResponse[Boolean] ? GetValue
+        // Send b a 1 (s should be 1 and c should be 0)
+        // Scenario A ~~~~~~~~~~~~~~~~~~~~~~
+        _ <- a ! true
+        _ <- system.waitForIdle()
+        s0 <- s.narrowResponse[Boolean] ? GetValue
+        c0 <- c.narrowResponse[Boolean] ? GetValue
 
-      // Scenario B ~~~~~~~~~~~~~~~~~~~~~~
-      // Send b a 1 (s should be 1  and c should be 1)
-      _ <- b ! true
-      _ <- system.waitForIdle()
-      s1 <- s.narrowResponse[Boolean] ? GetValue
-      c1 <- c.narrowResponse[Boolean] ? GetValue
+        // Scenario B ~~~~~~~~~~~~~~~~~~~~~~
+        // Send b a 1 (s should be 1  and c should be 1)
+        _ <- b ! true
+        _ <- system.waitForIdle()
+        s1 <- s.narrowResponse[Boolean] ? GetValue
+        c1 <- c.narrowResponse[Boolean] ? GetValue
 
-      // Scenario C ~~~~~~~~~~~~~~~~~~~~~~
-      // Send b a 1 (s should be 1  and c should be 1)
-      _ <- b ! false
-      _ <- system.waitForIdle()
-      s2 <- s.narrowResponse[Boolean] ? GetValue
-      c2 <- c.narrowResponse[Boolean] ? GetValue
-    } yield {
-      s0 should be(true)
-      c0 should be(false)
+        // Scenario C ~~~~~~~~~~~~~~~~~~~~~~
+        // Send b a 1 (s should be 1  and c should be 1)
+        _ <- b ! false
+        _ <- system.waitForIdle()
+        s2 <- s.narrowResponse[Boolean] ? GetValue
+        c2 <- c.narrowResponse[Boolean] ? GetValue
+      } yield {
+        s0 should be(true)
+        c0 should be(false)
 
-      s1 should be(false)
-      c1 should be(true)
+        s1 should be(false)
+        c1 should be(true)
 
-      s2 should be(true)
-      c2 should be(false)
+        s2 should be(true)
+        c2 should be(false)
+      }
     }
   }
 
   "A Full Adder" should "behave as a Full Adder to the wire stimuli" in {
-    (for {
-      system <- ActorSystem[IO]("Half Adder", (_: Any) => IO.unit).allocated.map(_._1)
-      a <- system.actorOf(Wire(false), "a")
-      b <- system.actorOf(Wire(false), "b")
-      cin <- system.actorOf(Wire(false), "cin")
-      sum <- system.actorOf(Wire(false), "sum")
-      cout <- system.actorOf(Wire(false), "cout")
-      _ <- system.actorOf(FullAdder(a, b, cin, sum, cout), "full-adder")
+    ActorSystem[IO]("Half Adder", (_: Any) => IO.unit).use{ system =>
+      (for {
+        a <- system.actorOf(Wire(false), "a")
+        b <- system.actorOf(Wire(false), "b")
+        cin <- system.actorOf(Wire(false), "cin")
+        sum <- system.actorOf(Wire(false), "sum")
+        cout <- system.actorOf(Wire(false), "cout")
+        _ <- system.actorOf(FullAdder(a, b, cin, sum, cout), "full-adder")
 
-      _ <- system.waitForIdle()
+        _ <- system.waitForIdle()
 
-      checkTruthTable = (aV: Boolean, bV: Boolean, cV: Boolean) =>
-        for {
-          _ <- a ! aV
-          _ <- b ! bV
-          _ <- cin ! cV
-          _ <- system.waitForIdle()
-          _sumV <- sum.narrowResponse[Boolean] ? GetValue
-          _coutV <- cout.narrowResponse[Boolean] ? GetValue
-        } yield (_sumV, _coutV)
+        checkTruthTable = (aV: Boolean, bV: Boolean, cV: Boolean) =>
+          for {
+            _ <- a ! aV
+            _ <- b ! bV
+            _ <- cin ! cV
+            _ <- system.waitForIdle()
+            _sumV <- sum.narrowResponse[Boolean] ? GetValue
+            _coutV <- cout.narrowResponse[Boolean] ? GetValue
+          } yield (_sumV, _coutV)
 
-      s1 <- checkTruthTable(false, false, false)
-      s2 <- checkTruthTable(false, false, true)
-      s3 <- checkTruthTable(false, true, false)
-      s4 <- checkTruthTable(false, true, true)
-      s5 <- checkTruthTable(true, false, false)
-      s6 <- checkTruthTable(true, false, true)
-      s7 <- checkTruthTable(true, true, false)
-      s8 <- checkTruthTable(true, true, true)
+        s1 <- checkTruthTable(false, false, false)
+        s2 <- checkTruthTable(false, false, true)
+        s3 <- checkTruthTable(false, true, false)
+        s4 <- checkTruthTable(false, true, true)
+        s5 <- checkTruthTable(true, false, false)
+        s6 <- checkTruthTable(true, false, true)
+        s7 <- checkTruthTable(true, true, false)
+        s8 <- checkTruthTable(true, true, true)
 
-      _ <- system.waitForIdle()
-    } yield (s1, s2, s3, s4, s5, s6, s7, s8)).map {
-      case ((s1, c1), (s2, c2), (s3, c3), (s4, c4), (s5, c5), (s6, c6), (s7, c7), (s8, c8)) =>
-        // Scenario 1 - false, false, false, false, false
-        s1 should be(false)
-        c1 should be(false)
+        _ <- system.waitForIdle()
+      } yield (s1, s2, s3, s4, s5, s6, s7, s8)).map {
+        case ((s1, c1), (s2, c2), (s3, c3), (s4, c4), (s5, c5), (s6, c6), (s7, c7), (s8, c8)) =>
+          // Scenario 1 - false, false, false, false, false
+          s1 should be(false)
+          c1 should be(false)
 
-        // Scenario 2 - false, false, true, true, false
-        s2 should be(true)
-        c2 should be(false)
+          // Scenario 2 - false, false, true, true, false
+          s2 should be(true)
+          c2 should be(false)
 
-        // Scenario 3 - false, true, false, true, false
-        s3 should be(true)
-        c3 should be(false)
+          // Scenario 3 - false, true, false, true, false
+          s3 should be(true)
+          c3 should be(false)
 
-        // Scenario 4 - false, true, true, false, true
-        s4 should be(false)
-        c4 should be(true)
+          // Scenario 4 - false, true, true, false, true
+          s4 should be(false)
+          c4 should be(true)
 
-        // Scenario 5 - true, false, false, true, false
-        s5 should be(true)
-        c5 should be(false)
+          // Scenario 5 - true, false, false, true, false
+          s5 should be(true)
+          c5 should be(false)
 
-        // Scenario 6 - true, false, true, false, true
-        s6 should be(false)
-        c6 should be(true)
+          // Scenario 6 - true, false, true, false, true
+          s6 should be(false)
+          c6 should be(true)
 
-        // Scenario 7 - true, true, false, false, true
-        s7 should be(false)
-        c7 should be(true)
+          // Scenario 7 - true, true, false, false, true
+          s7 should be(false)
+          c7 should be(true)
 
-        // Scenario 8 - true, true, true, true, true
-        s8 should be(true)
-        c8 should be(true)
+          // Scenario 8 - true, true, true, true, true
+          s8 should be(true)
+          c8 should be(true)
+      }
     }
   }
 
   "A Demux 2" should "behave as a de-multiplexer two to the wire stimuli" in {
-    (for {
-      system <- ActorSystem[IO]("Demux", (_: Any) => IO.unit).allocated.map(_._1)
-      input <- system.actorOf(Wire(false), "input")
-      c_0 <- system.actorOf(Wire(false), "c_0")
+    ActorSystem[IO]("Demux", (_: Any) => IO.unit).use{ system =>
+      (for {
+        input <- system.actorOf(Wire(false), "input")
+        c_0 <- system.actorOf(Wire(false), "c_0")
 
-      out_0 <- system.actorOf(Wire(false), "out_0")
-      out_1 <- system.actorOf(Wire(false), "out_1")
+        out_0 <- system.actorOf(Wire(false), "out_0")
+        out_1 <- system.actorOf(Wire(false), "out_1")
 
-      _ <- system.actorOf[LogicCircuitRequest](Demux2(input, c_0, out_0, out_1), "demux2")
-      _ <- system.waitForIdle()
+        _ <- system.actorOf[LogicCircuitRequest](Demux2(input, c_0, out_0, out_1), "demux2")
+        _ <- system.waitForIdle()
 
-      checkTruthTable = (_c_0: Boolean) =>
-        for {
-          _ <- input ! true
-          _ <- c_0 ! _c_0
-          _ <- system.waitForIdle()
-          out0V <- out_0.narrowResponse[Boolean] ? GetValue
-          out1V <- out_1.narrowResponse[Boolean] ? GetValue
-        } yield (out0V, out1V)
+        checkTruthTable = (_c_0: Boolean) =>
+          for {
+            _ <- input ! true
+            _ <- c_0 ! _c_0
+            _ <- system.waitForIdle()
+            out0V <- out_0.narrowResponse[Boolean] ? GetValue
+            out1V <- out_1.narrowResponse[Boolean] ? GetValue
+          } yield (out0V, out1V)
 
-      s1 <- checkTruthTable(false)
-      s2 <- checkTruthTable(true)
+        s1 <- checkTruthTable(false)
+        s2 <- checkTruthTable(true)
 
-    } yield (s1, s2)).map { case ((s1Out1, s1Out2), (s2Out1, s2Out2)) =>
-      // true, false
-      s1Out1 should be(true)
-      s1Out2 should be(false)
+      } yield (s1, s2)).map { case ((s1Out1, s1Out2), (s2Out1, s2Out2)) =>
+        // true, false
+        s1Out1 should be(true)
+        s1Out2 should be(false)
 
-      // false, true
-      s2Out1 should be(false)
-      s2Out2 should be(true)
+        // false, true
+        s2Out1 should be(false)
+        s2Out2 should be(true)
+      }
     }
   }
 
   "A Demux" should "behave as a de-multiplexer to the wire stimuli!" in {
-    (for {
-      system <- ActorSystem[IO]("Demux", (_: Any) => IO.unit).allocated.map(_._1)
-      input <- system.actorOf(Wire(false), "input")
-      c_0 <- system.actorOf(Wire(false), "c_0")
-      c_1 <- system.actorOf(Wire(false), "c_1")
+    ActorSystem[IO]("Demux", (_: Any) => IO.unit).use{ system =>
+      (for {
+        input <- system.actorOf(Wire(false), "input")
+        c_0 <- system.actorOf(Wire(false), "c_0")
+        c_1 <- system.actorOf(Wire(false), "c_1")
 
-      out_0 <- system.actorOf(Wire(false), "out_0")
-      out_1 <- system.actorOf(Wire(false), "out_1")
-      out_2 <- system.actorOf(Wire(false), "out_2")
-      out_3 <- system.actorOf(Wire(false), "out_3")
+        out_0 <- system.actorOf(Wire(false), "out_0")
+        out_1 <- system.actorOf(Wire(false), "out_1")
+        out_2 <- system.actorOf(Wire(false), "out_2")
+        out_3 <- system.actorOf(Wire(false), "out_3")
 
-      _ <- system.waitForIdle()
-      _ <- system.actorOf(
-        Demux(input, List(c_0, c_1), List(out_0, out_1, out_2, out_3)),
-        "demux"
-      )
+        _ <- system.waitForIdle()
+        _ <- system.actorOf(
+          Demux(input, List(c_0, c_1), List(out_0, out_1, out_2, out_3)),
+          "demux"
+        )
 
-      checkTruthTable = (_c_0: Boolean, _c_1: Boolean) =>
-        for {
-          _ <- input ! true
-          _ <- c_0 ! _c_0
-          _ <- c_1 ! _c_1
-          _ <- system.waitForIdle()
-          out0V <- out_0.narrowResponse[Boolean] ? GetValue
-          out1V <- out_1.narrowResponse[Boolean] ? GetValue
-          out2V <- out_2.narrowResponse[Boolean] ? GetValue
-          out3V <- out_3.narrowResponse[Boolean] ? GetValue
-        } yield (out0V, out1V, out2V, out3V)
+        checkTruthTable = (_c_0: Boolean, _c_1: Boolean) =>
+          for {
+            _ <- input ! true
+            _ <- c_0 ! _c_0
+            _ <- c_1 ! _c_1
+            _ <- system.waitForIdle()
+            out0V <- out_0.narrowResponse[Boolean] ? GetValue
+            out1V <- out_1.narrowResponse[Boolean] ? GetValue
+            out2V <- out_2.narrowResponse[Boolean] ? GetValue
+            out3V <- out_3.narrowResponse[Boolean] ? GetValue
+          } yield (out0V, out1V, out2V, out3V)
 
-      s1 <- checkTruthTable(false, false)
-      s2 <- checkTruthTable(false, true)
-      s3 <- checkTruthTable(true, false)
-      s4 <- checkTruthTable(true, true)
-    } yield (s1, s2, s3, s4)).map {
-      case (
-            (s0o1, s0o2, s0o3, s0o4),
-            (s1o1, s1o2, s1o3, s1o4),
-            (s2o1, s2o2, s2o3, s2o4),
-            (s3o1, s3o2, s3o3, s3o4)
-          ) =>
-        // Scenario 1:  true, false, false, false
-        s0o1 should be(true)
-        s0o2 should be(false)
-        s0o3 should be(false)
-        s0o4 should be(false)
+        s1 <- checkTruthTable(false, false)
+        s2 <- checkTruthTable(false, true)
+        s3 <- checkTruthTable(true, false)
+        s4 <- checkTruthTable(true, true)
+      } yield (s1, s2, s3, s4)).map {
+        case (
+              (s0o1, s0o2, s0o3, s0o4),
+              (s1o1, s1o2, s1o3, s1o4),
+              (s2o1, s2o2, s2o3, s2o4),
+              (s3o1, s3o2, s3o3, s3o4)
+            ) =>
+          // Scenario 1:  true, false, false, false
+          s0o1 should be(true)
+          s0o2 should be(false)
+          s0o3 should be(false)
+          s0o4 should be(false)
 
-        // Scenario 2:  false, true, false, false
-        s1o1 should be(false)
-        s1o2 should be(true)
-        s1o3 should be(false)
-        s1o4 should be(false)
+          // Scenario 2:  false, true, false, false
+          s1o1 should be(false)
+          s1o2 should be(true)
+          s1o3 should be(false)
+          s1o4 should be(false)
 
-        // Scenario 3:  false, false, true, false
-        s2o1 should be(false)
-        s2o2 should be(false)
-        s2o3 should be(true)
-        s2o4 should be(false)
+          // Scenario 3:  false, false, true, false
+          s2o1 should be(false)
+          s2o2 should be(false)
+          s2o3 should be(true)
+          s2o4 should be(false)
 
-        // Scenario 4:  false, false, false, true
-        s3o1 should be(false)
-        s3o2 should be(false)
-        s3o3 should be(false)
-        s3o4 should be(true)
+          // Scenario 4:  false, false, false, true
+          s3o1 should be(false)
+          s3o2 should be(false)
+          s3o3 should be(false)
+          s3o4 should be(true)
+      }
     }
   }
 }

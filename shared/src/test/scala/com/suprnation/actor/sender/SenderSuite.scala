@@ -93,92 +93,94 @@ object Sender {
 class SenderSuite extends CatsActorFlatSpec {
 
   it should "include itself as a sender on messages when using tell.  " in {
-    for {
-      system <- ActorSystem[IO]("sender-system", (_: Any) => IO.unit).allocated.map(_._1)
-      ref <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
-      baseActor <- system.actorOf[BaseActorMessages](
-        Sender.BaseActor(ref),
-        "base-actor"
-      )
-      appRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
-      forwardActor <- system.actorOf[BaseActorMessages](
-        Sender.ForwardActor(baseActor, appRef),
-        "forward-actor"
-      )
-      // Send a message to the app actor
-      _ <- forwardActor ! Tell("hello")
-      _ <- system.waitForIdle()
+    ActorSystem[IO]("sender-system", (_: Any) => IO.unit).use { system =>
+      for {
+        ref <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
+        baseActor <- system.actorOf[BaseActorMessages](
+          Sender.BaseActor(ref),
+          "base-actor"
+        )
+        appRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
+        forwardActor <- system.actorOf[BaseActorMessages](
+          Sender.ForwardActor(baseActor, appRef),
+          "forward-actor"
+        )
+        // Send a message to the app actor
+        _ <- forwardActor ! Tell("hello")
+        _ <- system.waitForIdle()
 
-      // The app actor will forward to the forward actor, let's capture the sender from that actor.
-      senderActor <- ref.get
-    } yield {
-      assert(senderActor.isDefined)
-      assert(forwardActor == senderActor.get)
+        // The app actor will forward to the forward actor, let's capture the sender from that actor.
+        senderActor <- ref.get
+      } yield {
+        assert(senderActor.isDefined)
+        assert(forwardActor == senderActor.get)
+      }
     }
   }
 
   it should "include itself as a sender on messages when using ask.  " in {
-    for {
-      system <- ActorSystem[IO]("sender-system-2", (_: Any) => IO.unit).allocated.map(_._1)
-      sinkSenderRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
-      baseActor <- system.actorOf[BaseActorMessages](
-        Sender.BaseActor(sinkSenderRef),
-        "sink"
-      )
-      forwardSenderRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
-      forwardActor <- system.actorOf[BaseActorMessages](
-        Sender.ForwardActor(baseActor, forwardSenderRef),
-        "forward-actor"
-      )
-      // Send a message to the app actor
-      _ <- forwardActor ! Ask("hello")
-      _ <- system.waitForIdle()
+    ActorSystem[IO]("sender-system-2", (_: Any) => IO.unit).use { system =>
+      for {
+        sinkSenderRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
+        baseActor <- system.actorOf[BaseActorMessages](
+          Sender.BaseActor(sinkSenderRef),
+          "sink"
+        )
+        forwardSenderRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
+        forwardActor <- system.actorOf[BaseActorMessages](
+          Sender.ForwardActor(baseActor, forwardSenderRef),
+          "forward-actor"
+        )
+        // Send a message to the app actor
+        _ <- forwardActor ! Ask("hello")
+        _ <- system.waitForIdle()
 
-      // The app actor will forward to the forward actor, let's capture the sender from that actor.
-      senderActor <- sinkSenderRef.get
-    } yield {
-      assert(senderActor.isDefined)
-      assert(forwardActor == senderActor.get)
+        // The app actor will forward to the forward actor, let's capture the sender from that actor.
+        senderActor <- sinkSenderRef.get
+      } yield {
+        assert(senderActor.isDefined)
+        assert(forwardActor == senderActor.get)
+      }
     }
   }
 
   it should "include itself as a sender on messages when using tell. (double forward)  " in {
-    (for {
-      system <- ActorSystem[IO]("sender-system-3", (_: Any) => IO.unit).allocated.map(_._1)
-      ref2 <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
-      sinkActor <- system.actorOf[BaseActorMessages](
-        Sender.BaseActor(ref2),
-        "base-actor"
-      )
+    ActorSystem[IO]("sender-system-3", (_: Any) => IO.unit).use { system =>
+      for {
+        ref2 <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
+        sinkActor <- system.actorOf[BaseActorMessages](
+          Sender.BaseActor(ref2),
+          "base-actor"
+        )
 
-      ref1 <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
-      forwardActor2 <- system.actorOf[BaseActorMessages](
-        Sender.ForwardActor(sinkActor, ref1),
-        "forward-actor-2"
-      )
+        ref1 <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
+        forwardActor2 <- system.actorOf[BaseActorMessages](
+          Sender.ForwardActor(sinkActor, ref1),
+          "forward-actor-2"
+        )
 
-      appRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
-      forwardActor1 <- system.actorOf[BaseActorMessages](
-        Sender.ForwardActor(forwardActor2, appRef),
-        "forward-actor-1"
-      )
+        appRef <- Ref[IO].of[Option[NoSendActorRef[IO]]](None)
+        forwardActor1 <- system.actorOf[BaseActorMessages](
+          Sender.ForwardActor(forwardActor2, appRef),
+          "forward-actor-1"
+        )
 
-      // Send a message to the app actor
-      _ <- forwardActor1 ! Forward("hello", swapCurrentReceivingActorAsActorRef = true)
-      _ <- system.waitForIdle()
+        // Send a message to the app actor
+        _ <- forwardActor1 ! Forward("hello", swapCurrentReceivingActorAsActorRef = true)
+        _ <- system.waitForIdle()
 
-      // The app actor will forward to the forward actor, let's capture the sender from that actor.
-      appReceiveRef <- appRef.get
-      forward1ReceiveRef <- ref1.get
-      forward2ReceiveRef <- ref2.get
+        // The app actor will forward to the forward actor, let's capture the sender from that actor.
+        appReceiveRef <- appRef.get
+        forward1ReceiveRef <- ref1.get
+        forward2ReceiveRef <- ref2.get
 
-    } yield (appReceiveRef, forward1ReceiveRef, forward2ReceiveRef, forwardActor1))
-      .map { case (app, forward1, forward2, sender) =>
-        assert(app.isEmpty)
-        assert(forward1.isDefined)
-        assert(forward2.isDefined)
-        assert(forward1.contains(sender))
-        assert(forward2.contains(sender))
+      } yield {
+        assert(appReceiveRef.isEmpty)
+        assert(forward1ReceiveRef.isDefined)
+        assert(forward2ReceiveRef.isDefined)
+        assert(forward1ReceiveRef.contains(forwardActor1))
+        assert(forward2ReceiveRef.contains(forwardActor1))
       }
+    }
   }
 }

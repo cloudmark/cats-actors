@@ -121,7 +121,7 @@ class SupervisionEscalation extends CatsActorFlatSpec {
         HashMap.empty[String, TrackingActor.ActorRefs[IO]]
       )
       eventBus <- IO.ref(List.empty[Any])
-      tuple <- ActorSystem[IO](
+      _ <- ActorSystem[IO](
         "supervision-system",
         (msg: Any) =>
           msg match {
@@ -130,18 +130,18 @@ class SupervisionEscalation extends CatsActorFlatSpec {
               eventBus.update(_ ++ List(msg))
             case msg => IO.println(msg)
           }
-      ).allocated
-      (system, waitForSystemStop) = tuple
-
-      exampleActor <- system.actorOf(
-        ThrowingTantrumActor().track("tantrum-actor-tracker")(cache)
-      )
-      // Crash the actor!
-      _ <- IO.race(IO.sleep(1 second), waitForSystemStop)
-      _ <- IO.println("System is running")
-      _ <- exampleActor ! "please work!"
-      _ <- waitForSystemStop
-
+      ).use { system =>
+        for {
+          exampleActor <- system.actorOf(
+            ThrowingTantrumActor().track("tantrum-actor-tracker")(cache)
+          )
+          // Crash the actor!
+          _ <- IO.race(IO.sleep(1 second), system.waitForTermination)
+          _ <- IO.println("System is running")
+          _ <- exampleActor ! "please work!"
+          _ <- system.waitForTermination
+        } yield ()
+      }
     } yield 1 should be(1)
   }
 

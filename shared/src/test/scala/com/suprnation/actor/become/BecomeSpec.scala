@@ -81,59 +81,63 @@ object BecomeUnBecome {
 class BecomeUnBecomeSpec extends CatsActorFlatSpec {
 
   it should "(Implicit State) increment and decrement correctly" in {
-    (for {
-      system <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).allocated.map(_._1)
-      calculator <- system.replyingActorOf(calculatorWithImplicitState)
-      result1 <- (calculator ! Increment) >> (calculator ? Value)
-      result2 <- (calculator ! Increment) >> (calculator ? Value)
-      result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
-      result1 should be(1)
-      result2 should be(2)
-      result3 should be(1)
+    ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).use{ system =>
+      (for {
+        calculator <- system.replyingActorOf(calculatorWithImplicitState)
+        result1 <- (calculator ! Increment) >> (calculator ? Value)
+        result2 <- (calculator ! Increment) >> (calculator ? Value)
+        result3 <- (calculator ! Decrement) >> (calculator ? Value)
+      } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
+        result1 should be(1)
+        result2 should be(2)
+        result3 should be(1)
+      }
     }
   }
 
   it should "(Become) increment and decrement correctly" in {
-    (for {
-      system <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).allocated.map(_._1)
-      calculator <- system.replyingActorOf(calculatorWithBecome)
-      result1 <- (calculator ! Increment) >> (calculator ? Value)
-      result2 <- (calculator ! Increment) >> (calculator ? Value)
-      result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
-      result1 should be(Option(1))
-      result2 should be(Option(2))
-      result3 should be(Option(1))
+    ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).use{ system =>
+      (for {
+        calculator <- system.replyingActorOf(calculatorWithBecome)
+        result1 <- (calculator ! Increment) >> (calculator ? Value)
+        result2 <- (calculator ! Increment) >> (calculator ? Value)
+        result3 <- (calculator ! Decrement) >> (calculator ? Value)
+      } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
+        result1 should be(Option(1))
+        result2 should be(Option(2))
+        result3 should be(Option(1))
+      }
     }
   }
 
   it should "(Become - Unstacked) increment and decrement correctly" in {
-    (for {
-      system <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).allocated.map(_._1)
-      calculator <- system.replyingActorOf(calculatorWithBecomeUnstacked)
-      result1 <- (calculator ! Increment) >> (calculator ? Value)
-      result2 <- (calculator ! Increment) >> (calculator ? Value)
-      result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
-      result1 should be(Option(1))
-      result2 should be(Option(2))
-      result3 should be(Option(1))
+    ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).use{ system =>
+      (for {
+        calculator <- system.replyingActorOf(calculatorWithBecomeUnstacked)
+        result1 <- (calculator ! Increment) >> (calculator ? Value)
+        result2 <- (calculator ! Increment) >> (calculator ? Value)
+        result3 <- (calculator ! Decrement) >> (calculator ? Value)
+      } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
+        result1 should be(Option(1))
+        result2 should be(Option(2))
+        result3 should be(Option(1))
+      }
     }
   }
 
   it should "(Ref) increment and decrement correctly" in {
-    (for {
-      system <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).allocated.map(_._1)
-      actor <- BecomeUnBecome.createCalculatorWithRef
-      calculator <- system.replyingActorOf(actor)
-      result1 <- (calculator ! Increment) >> (calculator ? Value)
-      result2 <- (calculator ! Increment) >> (calculator ? Value)
-      result3 <- (calculator ! Decrement) >> (calculator ? Value)
-    } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
-      result1 should be(1)
-      result2 should be(2)
-      result3 should be(1)
+    ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).use{ system =>
+      (for {
+        actor <- BecomeUnBecome.createCalculatorWithRef
+        calculator <- system.replyingActorOf(actor)
+        result1 <- (calculator ! Increment) >> (calculator ? Value)
+        result2 <- (calculator ! Increment) >> (calculator ? Value)
+        result3 <- (calculator ! Decrement) >> (calculator ? Value)
+      } yield (result1, result2, result3)).map { case (result1, result2, result3) =>
+        result1 should be(1)
+        result2 should be(2)
+        result3 should be(1)
+      }
     }
   }
 }

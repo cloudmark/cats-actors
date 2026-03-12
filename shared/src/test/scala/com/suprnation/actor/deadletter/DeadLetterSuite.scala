@@ -49,7 +49,7 @@ class DeadLetterSuite extends CatsActorFlatSpec {
     (for {
       buffer <- Ref[IO].of[Map[String, ActorRefs[IO]]](HashMap.empty[String, ActorRefs[IO]])
       deadLetterBus <- IO.ref(List.empty[Any])
-      actorSystem <- ActorSystem[IO](
+      result <- ActorSystem[IO](
         "dead-letter-system",
         (msg: Any) =>
           msg match {
@@ -58,23 +58,25 @@ class DeadLetterSuite extends CatsActorFlatSpec {
               deadLetterBus.update(_ ++ List(m))
             case _ => IO.unit
           }
-      ).allocated.map(_._1)
-
-      deadLetter <- actorSystem.replyingActorOf(
-        DeadLetterActor().track("dead-letter-tracker")(buffer),
-        "dead-letter"
-      )
-      _ <- (1 to numberOfMessages).map(index => deadLetter ! s"test-$index").toList.parSequence_
-      _ <- deadLetter ? "kill"
-      _ <- actorSystem.waitForIdle()
-      _ <- (1 to numberOfDeadLetterMessages)
-        .map(index => deadLetter ! s"dead-letter-$index")
-        .toList
-        .parSequence_
-      _ <- deadLetter.waitForIdle
-      actorMessages <- deadLetter.messageBuffer
-      deadLetterMessages <- deadLetterBus.get
-    } yield (actorMessages, deadLetterMessages, deadLetter)).unsafeToFuture().map {
+      ).use { actorSystem =>
+        for {
+          deadLetter <- actorSystem.replyingActorOf(
+            DeadLetterActor().track("dead-letter-tracker")(buffer),
+            "dead-letter"
+          )
+          _ <- (1 to numberOfMessages).map(index => deadLetter ! s"test-$index").toList.parSequence_
+          _ <- deadLetter ? "kill"
+          _ <- actorSystem.waitForIdle()
+          _ <- (1 to numberOfDeadLetterMessages)
+            .map(index => deadLetter ! s"dead-letter-$index")
+            .toList
+            .parSequence_
+          _ <- deadLetter.waitForIdle
+          actorMessages <- deadLetter.messageBuffer
+          deadLetterMessages <- deadLetterBus.get
+        } yield (actorMessages, deadLetterMessages, deadLetter)
+      }
+    } yield result).unsafeToFuture().map {
       case (actorMessages, deadLetterMessages, deadLetter) =>
         actorMessages._2.toSet should be(
           (1 to numberOfMessages).map(index => s"test-$index").toSet ++ Set("kill")
@@ -100,7 +102,7 @@ class DeadLetterSuite extends CatsActorFlatSpec {
     (for {
       buffer <- Ref[IO].of[Map[String, ActorRefs[IO]]](HashMap.empty[String, ActorRefs[IO]])
       deadLetterBus <- IO.ref(List.empty[Any])
-      actorSystem <- ActorSystem[IO](
+      result <- ActorSystem[IO](
         "dead-letter-system",
         (msg: Any) =>
           msg match {
@@ -109,22 +111,24 @@ class DeadLetterSuite extends CatsActorFlatSpec {
               deadLetterBus.update(_ ++ List(m))
             case _ => IO.unit
           }
-      ).allocated.map(_._1)
-
-      deadLetter <- actorSystem.actorOf[String](
-        DeadLetterActor().track("dead-letter-tracker")(buffer),
-        "dead-letter"
-      )
-      _ <- (1 to numberOfMessages).map(index => deadLetter ! s"test-$index").toList.parSequence_
-      _ <- deadLetter ? "kill"
-      _ <- (1 to numberOfDeadLetterMessages)
-        .map(index => deadLetter ! s"dead-letter-$index")
-        .toList
-        .parSequence_
-      _ <- deadLetter.waitForIdle
-      actorMessages <- deadLetter.messageBuffer
-      deadLetterMessages <- deadLetterBus.get
-    } yield (actorMessages, deadLetterMessages, deadLetter)).unsafeToFuture().map {
+      ).use { actorSystem =>
+        for {
+          deadLetter <- actorSystem.actorOf[String](
+            DeadLetterActor().track("dead-letter-tracker")(buffer),
+            "dead-letter"
+          )
+          _ <- (1 to numberOfMessages).map(index => deadLetter ! s"test-$index").toList.parSequence_
+          _ <- deadLetter ? "kill"
+          _ <- (1 to numberOfDeadLetterMessages)
+            .map(index => deadLetter ! s"dead-letter-$index")
+            .toList
+            .parSequence_
+          _ <- deadLetter.waitForIdle
+          actorMessages <- deadLetter.messageBuffer
+          deadLetterMessages <- deadLetterBus.get
+        } yield (actorMessages, deadLetterMessages, deadLetter)
+      }
+    } yield result).unsafeToFuture().map {
       case (actorMessages, deadLetterMessages, deadLetter) =>
         actorMessages._2.toSet should be(
           (1 to numberOfMessages).map(index => s"test-$index").toSet ++ Set("kill")

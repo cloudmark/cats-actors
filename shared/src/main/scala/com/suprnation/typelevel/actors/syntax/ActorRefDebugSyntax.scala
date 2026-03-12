@@ -40,9 +40,9 @@ object ActorRefDebugSyntax {
               Temporal[F].sleep(50 millis) *> waitForIdle // Wait for a bit and check again
             }
         } yield ()
-      waitForIdle.start.as(
-        deferred
-      ) // Start the waiting process in a separate fiber and return the Deferred
+      waitForIdle.start.flatMap(fiber =>
+        deferred.get.guarantee(fiber.cancel).start.as(deferred) // Start the waiting process in a separate fiber and return the Deferred
+      )
     }
 }
 

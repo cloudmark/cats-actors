@@ -6,8 +6,8 @@ import sbtcrossproject.CrossPlugin.autoImport._
 import scala.scalanative.sbtplugin.ScalaNativePlugin.autoImport._
 import org.scalajs.sbtplugin.ScalaJSPlugin.autoImport._
 
-val scala3 = "3.3.5"
-val scala2 = "2.13.16"
+val scala3 = "3.3.7"
+val scala2 = "2.13.18"
 
 ThisBuild / organization := "com.suprnation"
 ThisBuild / version := "2.0.1"
@@ -48,10 +48,9 @@ lazy val catsActors = crossProject(JSPlatform, JVMPlatform, NativePlatform)
   .settings(
     name := "cats-actors",
     libraryDependencies ++= Seq(
-      "org.typelevel" %%% "cats-effect" % "3.7-4972921",
-      "org.scalatest" %%% "scalatest" % "3.2.19" % Test,
-      // "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.6-3786de2-SNAPSHOT" % Test
-      "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.6-87d2376-SNAPSHOT" % Test
+      "org.typelevel" %%% "cats-effect" % "3.7.0",
+      "org.scalatest" %%% "scalatest" % "3.2.18" % Test,
+      "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.8.0" % Test
     )
   )
   .jvmSettings(

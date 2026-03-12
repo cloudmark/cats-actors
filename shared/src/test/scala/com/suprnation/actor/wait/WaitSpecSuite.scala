@@ -69,107 +69,112 @@ object WaitSpecSuite {
 class WaitSpecSuite extends CatsActorFlatSpec {
 
   it should "be able to wait for messages to be processed" in {
-    (for {
-      system <- ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).allocated.map(_._1)
-      ref <- Ref[IO].of(false)
-      input <- system.actorOf[String](slowActor(ref), "waiting")
-      _ <- (input ! "slow").start
-      _ <- input.waitForIdle
-      result <- ref.get
-    } yield result).map { result =>
-      assert(result)
+    ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).use{ system =>
+      (for {
+        ref <- Ref[IO].of(false)
+        input <- system.actorOf[String](slowActor(ref), "waiting")
+        _ <- (input ! "slow").start
+        _ <- input.waitForIdle
+        result <- ref.get
+      } yield result).map { result =>
+        assert(result)
+      }
     }
-
   }
 
   it should "be able to wait for messages to be processed when it has scheduled messages" in {
-    (for {
-      system <- ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).allocated.map(_._1)
-      ref <- Ref[IO].of(false)
-      input <- system.actorOf[String](slowActor(ref), "waiting")
-      _ <- (input ! "schedule").start
-      _ <- input.waitForIdle
-      result <- ref.get
-    } yield result).map { result =>
-      assert(result)
+    ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).use{ system =>
+      (for {
+        ref <- Ref[IO].of(false)
+        input <- system.actorOf[String](slowActor(ref), "waiting")
+        _ <- (input ! "schedule").start
+        _ <- input.waitForIdle
+        result <- ref.get
+      } yield result).map { result =>
+        assert(result)
+      }
     }
   }
 
   it should "be able to wait for messages to be processed (debugger)" in {
-    (for {
-      system <- ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).allocated.map(_._1)
-      ref <- Ref[IO].of(false)
-      input <- system.actorOfWithDebug(
-        slowActor(ref),
-        "waiting"
-      )
-      _ <- (input ! "slow").start
-      _ <- input.waitForIdle
-      result <- ref.get
-    } yield result).map { result =>
-      assert(result)
+    ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).use{ system =>
+      (for {
+        ref <- Ref[IO].of(false)
+        input <- system.actorOfWithDebug(
+          slowActor(ref),
+          "waiting"
+        )
+        _ <- (input ! "slow").start
+        _ <- input.waitForIdle
+        result <- ref.get
+      } yield result).map { result =>
+        assert(result)
+      }
     }
   }
 
   it should "be able to wait for messages to be processed when it has scheduled messages (debugger)" in {
-    (for {
-      system <- ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).allocated.map(_._1)
-      ref <- Ref[IO].of(false)
-      input <- system.actorOfWithDebug(
-        slowActor(ref),
-        "waiting"
-      )
-      _ <- (input ! "schedule").start
-      _ <- input.waitForIdle
-      result <- ref.get
-    } yield result).map { result =>
-      assert(result)
+    ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).use{ system =>
+      (for {
+        ref <- Ref[IO].of(false)
+        input <- system.actorOfWithDebug(
+          slowActor(ref),
+          "waiting"
+        )
+        _ <- (input ! "schedule").start
+        _ <- input.waitForIdle
+        result <- ref.get
+      } yield result).map { result =>
+        assert(result)
+      }
     }
   }
 
   it should "be able to wait for messages to be processed (children)" in {
-    (for {
-      system <- ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).allocated.map(_._1)
-      ref <- Ref[IO].of(false)
-      input <- system.actorOfWithDebug(
-        slowActor(ref),
-        "waiting"
-      )
-      _ <- input ! "slow"
-      // Print all children so we are sure!
-      names <- system.allChildren >>= (children => children.traverse(_.path.name.pure[IO]))
-      _ <- system.waitForIdle()
-      result <- ref.get
-    } yield (names, result)).map { case (names, result) =>
-      assert(result)
-      assert(names.toSet == Set("user", "waiting", "debug-waiting"))
+    ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).use{ system =>
+      (for {
+        ref <- Ref[IO].of(false)
+        input <- system.actorOfWithDebug(
+          slowActor(ref),
+          "waiting"
+        )
+        _ <- input ! "slow"
+        // Print all children so we are sure!
+        names <- system.allChildren >>= (children => children.traverse(_.path.name.pure[IO]))
+        _ <- system.waitForIdle()
+        result <- ref.get
+      } yield (names, result)).map { case (names, result) =>
+        assert(result)
+        assert(names.toSet == Set("user", "waiting", "debug-waiting"))
+      }
     }
   }
 
   it should "be able to wait for messages to be processed recursively" in {
-    (for {
-      system <- ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).allocated.map(_._1)
-      ref <- Ref[IO].of(false)
-      input <- system.actorOfWithDebug(
-        slowActorWithForward(ref, 3),
-        "waiting-3"
-      )
-      _ <- input ! "slow" // assert that at least the first actor received it in his queue.
-      names <- system.waitForIdle() >>= (children => children.traverse(c => c.path.name.pure[IO]))
-      result <- ref.get
-    } yield (names, result)).map { case (names, result) =>
-      assert(result)
-      assert(
-        names.toSet == Set(
-          "user",
-          "waiting-1",
-          "debug-waiting-1",
-          "waiting-2",
-          "debug-waiting-2",
-          "debug-waiting-3",
+    ActorSystem[IO]("Waiting Game", (_: Any) => IO.unit).use{ system =>
+      (for {
+        ref <- Ref[IO].of(false)
+        input <- system.actorOfWithDebug(
+          slowActorWithForward(ref, 3),
           "waiting-3"
         )
-      )
+        _ <- input ! "slow" // assert that at least the first actor received it in his queue.
+        names <- system.waitForIdle() >>= (children => children.traverse(c => c.path.name.pure[IO]))
+        result <- ref.get
+      } yield (names, result)).map { case (names, result) =>
+        assert(result)
+        assert(
+          names.toSet == Set(
+            "user",
+            "waiting-1",
+            "debug-waiting-1",
+            "waiting-2",
+            "debug-waiting-2",
+            "debug-waiting-3",
+            "waiting-3"
+          )
+        )
+      }
     }
   }
 

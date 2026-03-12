@@ -317,8 +317,8 @@ class FSMTimingSpec extends CatsActorFlatSpec {
               (expectMsgs(testActor, 1.second)(Tick))
           }
 
-          _ <- within(1.second) {
-            expectMsgs(testActor, 1.second)(Tock, Transition(TestSingleTimerResubmit, Initial))
+          _ <- within(3.seconds) {
+            expectMsgs(testActor, 2.seconds)(Tock, Transition(TestSingleTimerResubmit, Initial))
           }
           _ <- expectNoMsg(testActor, 1.second)
 

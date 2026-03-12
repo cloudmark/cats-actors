@@ -56,30 +56,32 @@ object Suspension {
 class SuspensionSpec extends CatsActorFlatSpec {
 
   it should "be able to suspend mailbox and resume it (pre-start)" in {
-    (for {
-      system <- ActorSystem[IO]("Suspension System").allocated.map(_._1)
-      input <- system.actorOf[String](suspensionExampleWithPreStart, "suspension")
-      _ <- input ! "suspend"
-      result <- IO.race(IO.sleep(50 millis), input ?! "Post Suspend")
-    } yield result).map {
-      case Right(_) => succeed
-      case Left(_) => fail("The race has completed before the post suspend has reached the mailbox")
+    ActorSystem[IO]("Suspension System").use{ system =>
+      (for {
+        input <- system.actorOf[String](suspensionExampleWithPreStart, "suspension")
+        _ <- input ! "suspend"
+        result <- IO.race(IO.sleep(50 millis), input ?! "Post Suspend")
+      } yield result).map {
+        case Right(_) => succeed
+        case Left(_) => fail("The race has completed before the post suspend has reached the mailbox")
+      }
     }
   }
 
   it should "be able to suspend mailbox" in {
-    (for {
-      system <- ActorSystem[IO]("Suspension System").allocated.map(_._1)
-      input <- system.actorOf[String](suspensionExample, "suspension")
-      _ <- ((input ! s"Pre-Suspend ${System.currentTimeMillis()}") >> IO.sleep(
-        1 millis
-      )).foreverM.start
-      _ <- input ! "suspend"
-      result <- IO.race(IO.sleep(4 millis), input ?! "Post Suspend")
-    } yield result).map {
-      case Right(_) =>
-        fail("The actor is suspended, we should not be able to resume internally from the actor. ")
-      case Left(_) => succeed
+    ActorSystem[IO]("Suspension System").use{ system =>
+      (for {
+        input <- system.actorOf[String](suspensionExample, "suspension")
+        _ <- ((input ! s"Pre-Suspend ${System.currentTimeMillis()}") >> IO.sleep(
+          1 millis
+        )).foreverM.start
+        _ <- input ! "suspend"
+        result <- IO.race(IO.sleep(4 millis), input ?! "Post Suspend")
+      } yield result).map {
+        case Right(_) =>
+          fail("The actor is suspended, we should not be able to resume internally from the actor. ")
+        case Left(_) => succeed
+      }
     }
   }
 

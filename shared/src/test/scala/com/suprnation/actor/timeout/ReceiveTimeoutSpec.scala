@@ -74,17 +74,20 @@ class ReceiveTimeoutSpec extends CatsActorFlatSpec {
     (for {
       counter <- Ref.of[IO, Int](0)
       buffer <- Ref.of[IO, List[Int]](List.empty)
-      system <- ActorSystem[IO]("HelloSystem").allocated.map(_._1)
-      //   default Actor constructor
-      helloActor <- system.replyingActorOf(
-        constantFlowActor(1 second, counter, buffer),
-        name = "hello-actor"
-      )
-      _ <- IO.sleep(
-        1.1 second
-      ) // timeout processing is tight with ping event that is emitted every 1s, so let the event some space at the beginning
-      result1 <- helloActor ? Get
-      _ <- buffer.update(_ => List.empty)
+      result1 <- ActorSystem[IO]("HelloSystem").use{ system =>
+        for {
+          //   default Actor constructor
+          helloActor <- system.replyingActorOf(
+            constantFlowActor(1 second, counter, buffer),
+            name = "hello-actor"
+          )
+          _ <- IO.sleep(
+            1.1 second
+          ) // timeout processing is tight with ping event that is emitted every 1s, so let the event some space at the beginning
+          result1 <- helloActor ? Get
+          _ <- buffer.update(_ => List.empty)
+        } yield result1
+      }
     } yield result1).map { case (r1, b1) =>
       r1 should be(1)
       b1 should be(List.empty)
@@ -96,36 +99,39 @@ class ReceiveTimeoutSpec extends CatsActorFlatSpec {
     (for {
       counter <- Ref.of[IO, Int](0)
       buffer <- Ref.of[IO, List[Int]](List.empty)
-      system <- ActorSystem[IO]("HelloSystem").allocated.map(_._1)
-      //   default Actor constructor
-      helloActor <- system.replyingActorOf(
-        constantFlowActor(1 second, counter, buffer),
-        name = "hello-actor"
-      )
-      _ <- IO.sleep(
-        0.8 second
-      ) // timeout processing is tight with ping event that is emitted every 1s, so let the event some space at the beginning
+      result <- ActorSystem[IO]("HelloSystem").use{ system =>
+        for {
+          //   default Actor constructor
+          helloActor <- system.replyingActorOf(
+            constantFlowActor(1 second, counter, buffer),
+            name = "hello-actor"
+          )
+          _ <- IO.sleep(
+            0.8 second
+          ) // timeout processing is tight with ping event that is emitted every 1s, so let the event some space at the beginning
 
-      _ <- helloActor ! 1
-      _ <- helloActor ! 2
-      // Stop processing for 1 second
-      _ <- IO.sleep(1.8 second)
-      result1 <- helloActor ? Get
-      _ <- buffer.update(_ => List.empty)
+          _ <- helloActor ! 1
+          _ <- helloActor ! 2
+          // Stop processing for 1 second
+          _ <- IO.sleep(1.8 second)
+          result1 <- helloActor ? Get
+          _ <- buffer.update(_ => List.empty)
 
-      _ <- helloActor ! 3
-      _ <- helloActor ! 4
-      // Stop processing for 1 second
-      _ <- IO.sleep(1.8 second)
-      result2 <- helloActor ? Get
-      _ <- buffer.update(_ => List.empty)
+          _ <- helloActor ! 3
+          _ <- helloActor ! 4
+          // Stop processing for 1 second
+          _ <- IO.sleep(1.8 second)
+          result2 <- helloActor ? Get
+          _ <- buffer.update(_ => List.empty)
 
-      _ <- helloActor ?! 5
-      // Stop processing for 1 second
-      _ <- IO.sleep(1.8 second)
-      result3 <- helloActor ? Get
-      _ <- buffer.update(_ => List.empty)
-    } yield (result1, result2, result3)).map { case ((r1, b1), (r2, b2), (r3, b3)) =>
+          _ <- helloActor ?! 5
+          // Stop processing for 1 second
+          _ <- IO.sleep(1.8 second)
+          result3 <- helloActor ? Get
+          _ <- buffer.update(_ => List.empty)
+        } yield (result1, result2, result3)
+      }
+    } yield result).map { case ((r1, b1), (r2, b2), (r3, b3)) =>
       r1 should be(1)
       b1 should be(List(2, 1))
 
@@ -141,21 +147,24 @@ class ReceiveTimeoutSpec extends CatsActorFlatSpec {
     (for {
       counter <- Ref.of[IO, Int](0)
       buffer <- Ref.of[IO, List[Int]](List.empty)
-      system <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).allocated.map(_._1)
-      //   default Actor constructor
-      helloActor <- system.replyingActorOf(
-        constantFlowActor(1 millis, counter, buffer),
-        name = "hello-actor"
-      )
+      result1 <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).use{ system =>
+        for {
+          //   default Actor constructor
+          helloActor <- system.replyingActorOf(
+            constantFlowActor(1 millis, counter, buffer),
+            name = "hello-actor"
+          )
 
-      _ <- helloActor ! 1
-      _ <- helloActor ! 2
-      // Stop processing for 1 millis
-      _ <- IO.sleep(9 millis)
-      _ <- helloActor ! RescheduleTimeout(30 millis)
-      _ <- IO.sleep(28 millis)
-      result1 <- helloActor ? Get
-      _ <- buffer.update(_ => List.empty)
+          _ <- helloActor ! 1
+          _ <- helloActor ! 2
+          // Stop processing for 1 millis
+          _ <- IO.sleep(9 millis)
+          _ <- helloActor ! RescheduleTimeout(30 millis)
+          _ <- IO.sleep(28 millis)
+          result1 <- helloActor ? Get
+          _ <- buffer.update(_ => List.empty)
+        } yield result1
+      }
     } yield result1).map { case (r1, b1) =>
       r1 should be(0)
       b1 should be(List(2, 1))
@@ -166,21 +175,24 @@ class ReceiveTimeoutSpec extends CatsActorFlatSpec {
     (for {
       counter <- Ref.of[IO, Int](0)
       buffer <- Ref.of[IO, List[Int]](List.empty)
-      system <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).allocated.map(_._1)
-      //   default Actor constructor
-      helloActor <- system.replyingActorOf(
-        constantFlowActor(1 millis, counter, buffer),
-        name = "hello-actor"
-      )
+      result1 <- ActorSystem[IO]("HelloSystem", (_: Any) => IO.unit).use{ system =>
+        for {
+          //   default Actor constructor
+          helloActor <- system.replyingActorOf(
+            constantFlowActor(1 millis, counter, buffer),
+            name = "hello-actor"
+          )
 
-      _ <- helloActor ! 1
-      _ <- helloActor ! 2
-      // Stop processing for 1 millis
-      _ <- IO.sleep(9 millis)
-      _ <- helloActor ! CancelTimeout
-      _ <- IO.sleep(28 millis)
-      result1 <- helloActor ? Get
-      _ <- buffer.update(_ => List.empty)
+          _ <- helloActor ! 1
+          _ <- helloActor ! 2
+          // Stop processing for 1 millis
+          _ <- IO.sleep(9 millis)
+          _ <- helloActor ! CancelTimeout
+          _ <- IO.sleep(28 millis)
+          result1 <- helloActor ? Get
+          _ <- buffer.update(_ => List.empty)
+        } yield result1
+      }
     } yield result1).map { case (r1, b1) =>
       r1 should be(0)
       b1 should be(List(2, 1))
