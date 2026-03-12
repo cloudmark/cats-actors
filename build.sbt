@@ -18,6 +18,16 @@ ThisBuild / licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICE
 //ThisBuild / crossScalaVersions := Seq("2.13.16", "3.3.5")
 ThisBuild / scalaVersion := scala3
 
+lazy val benchmark = project
+  .in(file("benchmark/"))
+  .dependsOn(root)
+  .enablePlugins(JmhPlugin)
+  .settings(
+    name := "cats-actors-benchmark",
+    scalaVersion := "3.3.4",
+    libraryDependencies ++= Seq()
+  )
+
 lazy val commonSettings = Seq(
   Test / parallelExecution := false,
   scalacOptions ++= {
