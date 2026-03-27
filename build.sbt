@@ -15,7 +15,8 @@ ThisBuild / organizationName := "SuprNation"
 ThisBuild / startYear := Some(2024)
 ThisBuild / licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
 
-//ThisBuild / crossScalaVersions := Seq("2.13.16", "3.3.5")
+ThisBuild / crossScalaVersions := Seq(scala2, scala3)
+
 ThisBuild / scalaVersion := scala3
 
 lazy val benchmark = project
@@ -62,15 +63,6 @@ lazy val catsActors = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.scalatest" %%% "scalatest" % "3.2.18" % Test,
       "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.8.0" % Test
     )
-  )
-  .jvmSettings(
-    crossJavaVersions := Seq(scala3, scala2)
-  )
-  .jsSettings(
-    crossScalaVersions := Seq(scala3)
-  )
-  .nativeSettings(
-    crossScalaVersions := Seq(scala3)
   )
 
 lazy val catsActorsJVM = catsActors.jvm
