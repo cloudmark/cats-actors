@@ -10,7 +10,7 @@ val scala3 = "3.3.7"
 val scala2 = "2.13.18"
 
 ThisBuild / organization := "com.suprnation"
-ThisBuild / version := "2.0.1"
+ThisBuild / version := "2.1.0"
 ThisBuild / organizationName := "SuprNation"
 ThisBuild / startYear := Some(2024)
 ThisBuild / licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.txt"))
@@ -25,8 +25,9 @@ lazy val benchmark = project
   .enablePlugins(JmhPlugin)
   .settings(
     name := "cats-actors-benchmark",
-    scalaVersion := "3.3.4",
-    libraryDependencies ++= Seq()
+    scalaVersion := scala3,
+    libraryDependencies ++= Seq(),
+    publish / skip := true
   )
 
 lazy val commonSettings = Seq(
