@@ -180,10 +180,13 @@ object Mailboxes {
           // Async[F].delay {
           //   userQueue.add(msg)
           // }
-          userQueue.tryOffer(msg)
-            >> (if (deferred != null) {
-                  deferred.complete(()).void
-                } else Async[F].unit)
+          userQueue
+            .tryOffer(msg)
+            .flatMap{ _ =>
+              if (deferred != null) {
+                deferred.complete(()).void
+              } else Async[F].unit
+            }
 
         @inline override val dequeue: F[A] =
           userQueue.take // not sure if blocking here is a good idea
