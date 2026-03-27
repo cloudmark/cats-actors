@@ -44,7 +44,7 @@ lazy val commonSettings = Seq(
   libraryDependencies ++= {
     scalaBinaryVersion.value match {
       case "2.13" =>
-        List(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.3" cross CrossVersion.full))
+        List(compilerPlugin("org.typelevel" % "kind-projector" % "0.13.4" cross CrossVersion.full))
       case _ =>
         Nil
     }
