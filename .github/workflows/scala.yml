@@ -36,7 +36,7 @@ jobs:
 
 
       - name: Cache sbt
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
@@ -44,12 +44,15 @@ jobs:
             ${{ runner.os }}-sbt-
 
       - name: Cache Coursier
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.coursier
           key: ${{ runner.os }}-coursier-${{ hashFiles('**/build.sbt') }}
           restore-keys: |
             ${{ runner.os }}-coursier-
+
+      - name: Install Scala Native toolchain (LLVM/Clang)
+        run: sudo apt-get install -y clang llvm lld libunwind-dev libgc-dev
 
       - name: Run tests for Scala 2.13
         run: sbt ++2.13.18 clean compile test

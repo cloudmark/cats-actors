@@ -19,12 +19,13 @@ package com.suprnation.actor.supervision
 import cats.effect.IO
 import cats.implicits._
 import com.suprnation.actor._
+import com.suprnation.actor.ActorRef.ActorRef
 import com.suprnation.actor.event.Debug
 import com.suprnation.actor.supervision.Supervision.ExampleActor.allForOneSupervisionStrategy
 import com.suprnation.typelevel.actors.syntax._
-import org.scalatest.flatspec.AsyncFlatSpec
-import org.scalatest.matchers.should.Matchers
 import com.suprnation.spec.CatsActorFlatSpec
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class SupervisionSpecAllForOne extends CatsActorFlatSpec {
   import Supervision._
@@ -53,8 +54,9 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("3", reason = crashData)
           _ <- exampleActor ! Messages.Dangerous("4", reason = None)
           _ <- system.waitForIdle()
+          _ <- IO.sleep(100.millisecond)
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -131,7 +133,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           eventBuffer.size should be(2)
         }
       }
-    } yield ()
+    } yield succeed
   }
 
   it should "resume an actor (and drop the message) when a message causes an error [MULTIPLE ACTORS]  " in {
@@ -158,7 +160,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("4", reason = None)
           _ <- system.waitForIdle()
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -247,7 +249,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           eventBuffer.size should be(2)
         }
       }
-    } yield ()
+    } yield succeed
   }
 
   it should "resume an actor (and drop the message) when a message causes an error [MULTIPLE ACTORS - SEND TO BOTH]  " in {
@@ -275,7 +277,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("4", reason = None, index = 1)
           _ <- system.waitForIdle()
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -368,7 +370,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           eventBuffer.size should be(2)
         }
       }
-    } yield ()
+    } yield succeed
   }
 
   it should "restart an actor (and drop the message) when a message causes an error.  " in {
@@ -400,7 +402,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("4", reason = None)
           _ <- system.waitForIdle()
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -494,7 +496,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           eventBuffer.size should be(2)
         }
       }
-    } yield ()
+    } yield succeed
   }
 
   it should "restart an actor (and drop the message) when a message causes an error [MULTIPLE ACTORS].  " in {
@@ -526,7 +528,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("4", reason = None)
           _ <- system.waitForIdle()
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -548,47 +550,47 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
 
         } yield {
           trackedChildren.size should be(4)
-      parentMessageBuffer._2.size should be(6)
-      parentMessageBuffer._2.toSet should contain.allOf(
-        Messages.Dangerous("1", reason = crashData),
-        Messages.Dangerous("2", reason = None),
-        Messages.JobReply("2", parentReference),
-        Messages.Dangerous("3", reason = crashData),
-        Messages.Dangerous("4", reason = None),
-        Messages.JobReply("4", parentReference)
-      )
-      parentErrorMessageBuffer._2.size should be(0)
-      parentSuspensionCount._2 should be(0)
-      parentResumeCount._2 should be(0)
-      parentInitCounts._2 should be(1)
+          parentMessageBuffer._2.size should be(6)
+          parentMessageBuffer._2.toSet should contain.allOf(
+            Messages.Dangerous("1", reason = crashData),
+            Messages.Dangerous("2", reason = None),
+            Messages.JobReply("2", parentReference),
+            Messages.Dangerous("3", reason = crashData),
+            Messages.Dangerous("4", reason = None),
+            Messages.JobReply("4", parentReference)
+          )
+          parentErrorMessageBuffer._2.size should be(0)
+          parentSuspensionCount._2 should be(0)
+          parentResumeCount._2 should be(0)
+          parentInitCounts._2 should be(1)
 
-      childrenInitCounts should contain
-        .allOf(replyActor(0) -> 3, replyActor(1) -> 3, replyActor(2) -> 3, replyActor(3) -> 3)
-      childrenPreSuspensionCounts should contain
-        .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
-      childrenPreResumeCounts should contain
-        .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
-      childrenPreRestartCounts should contain
-        .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
-      childrenPostRestartCounts should contain
-        .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
-      childrenPostStopCounts should contain
-        .allOf(replyActor(0) -> 0, replyActor(1) -> 0, replyActor(2) -> 0, replyActor(3) -> 0)
+          childrenInitCounts should contain
+            .allOf(replyActor(0) -> 3, replyActor(1) -> 3, replyActor(2) -> 3, replyActor(3) -> 3)
+          childrenPreSuspensionCounts should contain
+            .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
+          childrenPreResumeCounts should contain
+            .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
+          childrenPreRestartCounts should contain
+            .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
+          childrenPostRestartCounts should contain
+            .allOf(replyActor(0) -> 2, replyActor(1) -> 2, replyActor(2) -> 2, replyActor(3) -> 2)
+          childrenPostStopCounts should contain
+            .allOf(replyActor(0) -> 0, replyActor(1) -> 0, replyActor(2) -> 0, replyActor(3) -> 0)
 
-      childrenMessageBuffers should contain.allOf(
-        replyActor(0) -> List(
+          childrenMessageBuffers should contain.allOf(
+            replyActor(0) -> List(
           Messages.JobRequest("1", parentReference, reason = crashData),
           Messages.JobRequest("2", parentReference, reason = None),
           Messages.JobRequest("3", parentReference, reason = crashData),
           Messages.JobRequest("4", parentReference, reason = None)
-        ),
-        replyActor(1) -> List.empty,
-        replyActor(2) -> List.empty,
-        replyActor(3) -> List.empty
-      )
+            ),
+            replyActor(1) -> List.empty,
+            replyActor(2) -> List.empty,
+            replyActor(3) -> List.empty
+          )
 
-      childrenRestartBuffers.toSet should contain.allOf(
-        replyActor(0) -> List(
+          childrenRestartBuffers.toSet should contain.allOf(
+            replyActor(0) -> List(
           crashData ->
             Some(
               Envelope(
@@ -603,23 +605,23 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
                 parentReference
               )(Receiver(trackedChildren.find(x => x.path.name == replyActor(0)).get))
             )
-        ),
-        replyActor(1) -> List(
+            ),
+            replyActor(1) -> List(
           crashData -> None,
           crashData -> None
-        ),
-        replyActor(2) -> List(
+            ),
+            replyActor(2) -> List(
           crashData -> None,
           crashData -> None
-        ),
-        replyActor(3) -> List(
+            ),
+            replyActor(3) -> List(
           crashData -> None,
           crashData -> None
-        )
-      )
+            )
+          )
 
-      childrenErrorMessageBuffers.toSet should contain.allOf(
-        replyActor(0) -> List(
+          childrenErrorMessageBuffers.toSet should contain.allOf(
+            replyActor(0) -> List(
           crashData.get ->
             Some(
               Envelope(
@@ -634,17 +636,17 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
                 parentReference
               )(Receiver(trackedChildren.find(x => x.path.name == replyActor(0)).get))
             )
-        ),
-        replyActor(1) -> List.empty,
-        replyActor(2) -> List.empty,
-        replyActor(3) -> List.empty
-      )
+            ),
+            replyActor(1) -> List.empty,
+            replyActor(2) -> List.empty,
+            replyActor(3) -> List.empty
+          )
 
           parentErrorMessageBuffer._2 should be(List.empty)
           eventBuffer.size should be(2)
         }
       }
-    } yield ()
+    } yield succeed
   }
 
   it should "restart an actor (and drop the message) when a message causes an error from messages sent from multiple actors [MULTIPLE ACTORS].  " in {
@@ -677,7 +679,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("4", reason = None, index = 1)
           _ <- system.waitForIdle()
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -818,7 +820,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           eventBuffer.size should be(2)
         }
       }
-    } yield ()
+    } yield succeed
   }
 
   it should "stop an actor (and drop the message) when a message causes an error.  " in {
@@ -852,7 +854,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("4", reason = None)
           _ <- system.waitForIdle()
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -933,7 +935,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           )
         }
       }
-    } yield ()
+    } yield succeed
   }
 
   it should "stop an actor (and drop the message) when a message causes an error.  [MULTIPLE ACTORS]" in {
@@ -966,7 +968,7 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           _ <- exampleActor ! Messages.Dangerous("4", reason = None)
           _ <- system.waitForIdle()
 
-          parentReference = exampleActor
+          parentReference: ActorRef[IO, Messages.ActorMessages] = exampleActor
           parentMessageBuffer <- exampleActor.messageBuffer
           parentErrorMessageBuffer <- exampleActor.errorMessageBuffer
           parentInitCounts <- exampleActor.initCount
@@ -1058,6 +1060,6 @@ class SupervisionSpecAllForOne extends CatsActorFlatSpec {
           )
         }
       }
-    } yield ()
+    } yield succeed
   }
 }

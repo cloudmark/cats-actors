@@ -153,7 +153,7 @@ class TestKitSpec extends CatsActorFlatSpec with TestKit {
 
   "within" should "raise exception when code block takes longer than max time" in {
     testActorSystem(Actor.withReceive[IO, Any] { case s =>
-      IO.sleep(400 millis).as(s)
+      IO.sleep(3000 millis).as(s)
     }) { case (_, actorRef) =>
       within(100 millis, 300 millis)(
         actorRef ? "Delayed Echo"

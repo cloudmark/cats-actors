@@ -21,7 +21,7 @@ ThisBuild / scalaVersion := scala3
 
 lazy val benchmark = project
   .in(file("benchmark/"))
-  .dependsOn(root)
+  .dependsOn(catsActorsJVM)
   .enablePlugins(JmhPlugin)
   .settings(
     name := "cats-actors-benchmark",
@@ -32,6 +32,12 @@ lazy val benchmark = project
 
 lazy val commonSettings = Seq(
   Test / parallelExecution := false,
+  publishMavenStyle := true,
+  publishTo := Some(
+    "GitHub Package Registry" at "https://maven.pkg.github.com/cloudmark/cats-actors"
+  ),
+  publishConfiguration := publishConfiguration.value.withOverwrite(true),
+  publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true),
   scalacOptions ++= {
     scalaBinaryVersion.value match {
       case "2.13" =>
@@ -65,12 +71,15 @@ lazy val catsActors = crossProject(JSPlatform, JVMPlatform, NativePlatform)
       "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.8.0" % Test
     )
   )
+  .jvmSettings(
+    libraryDependencies += "org.typelevel" %% "scalac-compat-annotation" % "0.1.4"
+  )
 
 lazy val catsActorsJVM = catsActors.jvm
 lazy val catsActorsJS = catsActors.js
 lazy val catsActorsNative = catsActors.native
 
-lazy val root = (project in file("root"))
+lazy val root = (project in file("."))
   .aggregate(catsActorsJVM, catsActorsJS, catsActorsNative)
   .settings(
     name := "cats-actors-root",

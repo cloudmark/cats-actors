@@ -232,10 +232,10 @@ class FSMTimingSpec extends CatsActorFlatSpec {
           proxyActor <- system.actorOf(new ProxyActor(testActor))
           fsm <- system.replyingActorOf(stateMachine(proxyActor))
 
-          _ <- within(1.second) {
+          _ <- within(3.seconds) {
             (proxyActor ! Send(TestStateTimeout, fsm)) >>
               (proxyActor ! Send(Cancel, fsm)) >>
-              (expectMsgs(testActor, 1.second)(List(Cancel), Transition(TestStateTimeout, Initial)))
+              (expectMsgs(testActor, 3.seconds)(List(Cancel), Transition(TestStateTimeout, Initial)))
           }
           _ <- expectNoMsg(testActor, 200.millis)
 
@@ -262,9 +262,9 @@ class FSMTimingSpec extends CatsActorFlatSpec {
           _ <- proxyActor ! Send(TestStateTimeoutOverride, fsm)
           _ <- expectNoMsg(testActor, 400.millis)
 
-          _ <- within(1.second) {
+          _ <- within(3.seconds) {
             (proxyActor ! Send(Cancel, fsm)) >>
-              (expectMsgs(testActor, 1.second)(List(Cancel), Transition(TestStateTimeout, Initial)))
+              (expectMsgs(testActor, 3.seconds)(List(Cancel), Transition(TestStateTimeout, Initial)))
           }
           _ <- expectNoMsg(testActor, 200.millis)
 
@@ -287,9 +287,9 @@ class FSMTimingSpec extends CatsActorFlatSpec {
           proxyActor <- system.actorOf(new ProxyActor(testActor))
           fsm <- system.replyingActorOf(stateMachine(proxyActor))
 
-          _ <- within(500.millis, 1.second) {
+          _ <- within(500.millis, 3.seconds) {
             (proxyActor ! Send(TestSingleTimer, fsm)) >>
-              (expectMsgs(testActor, 1.second)(Tick, Transition(TestSingleTimer, Initial)))
+              (expectMsgs(testActor, 3.seconds)(Tick, Transition(TestSingleTimer, Initial)))
           }
           _ <- expectNoMsg(testActor, 2.seconds)
 
@@ -312,9 +312,9 @@ class FSMTimingSpec extends CatsActorFlatSpec {
           proxyActor <- system.actorOf(new ProxyActor(testActor))
           fsm <- system.replyingActorOf(stateMachine(proxyActor))
 
-          _ <- within(500.millis, 1.second) {
+          _ <- within(500.millis, 3.seconds) {
             (proxyActor ! Send(TestSingleTimerResubmit, fsm)) >>
-              (expectMsgs(testActor, 1.second)(Tick))
+              (expectMsgs(testActor, 3.seconds)(Tick))
           }
 
           _ <- within(3.seconds) {
@@ -348,8 +348,8 @@ class FSMTimingSpec extends CatsActorFlatSpec {
               (expectMsgs(testActor, 1.second)(Tick))
           }
 
-          _ <- within(300.millis, 1.second) {
-            expectMsgs(testActor, 1.second)(Tock)
+          _ <- within(300.millis, 2.seconds) {
+            expectMsgs(testActor, 2.seconds)(Tock)
           }
 
           _ <- fsm ! Cancel

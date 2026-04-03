@@ -1,8 +1,9 @@
 name: Publish Package on Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
 
 jobs:
@@ -11,10 +12,18 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
+      - name: Create or update GitHub release
+        run: |
+          gh release view "${{ github.ref_name }}" > /dev/null 2>&1 \
+            && gh release edit "${{ github.ref_name }}" \
+            || gh release create "${{ github.ref_name }}" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           distribution: 'adopt'
           java-version: '11'
@@ -26,7 +35,7 @@ jobs:
           scala-version: 2.13.18
 
       - name: Cache sbt
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.sbt
           key: ${{ runner.os }}-sbt-${{ hashFiles('**/build.sbt') }}
@@ -34,7 +43,7 @@ jobs:
             ${{ runner.os }}-sbt-
 
       - name: Cache Coursier
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: ~/.coursier
           key: ${{ runner.os }}-coursier-${{ hashFiles('**/build.sbt') }}
@@ -46,26 +55,12 @@ jobs:
           mkdir -p ~/.sbt/1.0
           echo "credentials += Credentials(\"GitHub Package Registry\", \"maven.pkg.github.com\", \"${{ github.actor }}\", \"${{ secrets.GITHUB_TOKEN }}\")" >> ~/.sbt/1.0/global.sbt
 
-      - name: Build and publish for Scala 2.13
-        run: |
-          sbt ++2.13.18 clean compile publishM2
+      - name: Build and publish (all Scala versions)
+        run: sbt +clean +compile +publishM2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish for Scala 2.13
-        run: |
-          sbt ++2.13.18 publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and publish for Scala 3
-        run: |
-          sbt ++3.3.7 clean compile publishM2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish for Scala 3
-        run: |
-          sbt ++3.3.7 publish
+      - name: Publish to GitHub Packages (all Scala versions)
+        run: sbt +publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

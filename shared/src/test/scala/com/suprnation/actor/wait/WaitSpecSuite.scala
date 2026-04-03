@@ -32,7 +32,7 @@ object WaitSpecSuite {
 
   def slowActor(ref: Ref[IO, Boolean]): Actor[IO, String] = new Actor[IO, String] {
     override def receive: Receive[IO, String] = { case msg =>
-      IO.sleep(10 millisecond) >> ref.set(true).as(msg)
+      IO.sleep(200.millisecond) >> ref.set(true).as(msg)
     }
   }
 
@@ -41,9 +41,9 @@ object WaitSpecSuite {
       override def receive: Receive[IO, String] =
         if (levels == 1) {
           case "slow" =>
-            IO.sleep(10 millisecond) >> ref.updateAndGet(_ => true)
+            IO.sleep(200.millisecond) >> ref.updateAndGet(_ => true)
           case "schedule" =>
-            IO.sleep(10 millisecond) >> ref.updateAndGet(_ => true)
+            IO.sleep(200.millisecond) >> ref.updateAndGet(_ => true)
         }
         else {
           case "slow" =>
