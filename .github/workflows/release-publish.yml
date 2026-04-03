@@ -22,8 +22,8 @@ jobs:
       - name: Setup sbt
         uses: olafurpg/setup-scala@v11
         with:
-          sbt-version: 1.9.9
-          scala-version: 2.13.16
+          sbt-version: 1.12.5
+          scala-version: 2.13.18
 
       - name: Cache sbt
         uses: actions/cache@v2
@@ -48,24 +48,24 @@ jobs:
 
       - name: Build and publish for Scala 2.13
         run: |
-          sbt ++2.13.16 clean compile publishM2
+          sbt ++2.13.18 clean compile publishM2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish for Scala 2.13
         run: |
-          sbt ++2.13.16 publish
+          sbt ++2.13.18 publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and publish for Scala 3
         run: |
-          sbt ++3.3.4 clean compile publishM2
+          sbt ++3.3.7 clean compile publishM2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish for Scala 3
         run: |
-          sbt ++3.3.4 publish
+          sbt ++3.3.7 publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

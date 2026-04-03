@@ -31,8 +31,8 @@ jobs:
       - name: Setup sbt
         uses: olafurpg/setup-scala@v11
         with:
-          sbt-version: 1.9.9
-          scala-version: 2.13.16
+          sbt-version: 1.12.5
+          scala-version: 2.13.18
 
 
       - name: Cache sbt
@@ -52,10 +52,10 @@ jobs:
             ${{ runner.os }}-coursier-
 
       - name: Run tests for Scala 2.13
-        run: sbt ++2.13.16 clean compile test
+        run: sbt ++2.13.18 clean compile test
 
       - name: Run tests for Scala 3
-        run: sbt ++3.3.4 clean compile test
+        run: sbt ++3.3.7 clean compile test
 
 #      - name: Sbt Dependency Submission for Scala 2.13
 #        uses: scalacenter/sbt-dependency-submission@v3.0.1
