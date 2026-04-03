@@ -1,6 +1,6 @@
 # Cats-Actors
 
-[![Release](https://jitpack.io/v/suprnation/cats-actors.svg)](https://jitpack.io/#suprnation/cats-actors)
+[![Release](https://jitpack.io/v/cloudmark/cats-actors.svg)](https://jitpack.io/#cloudmark/cats-actors)
 
 Cats-Actors 🐱 is a functional programming-based actor system derived from Akka v2.6.21 🚀️
 
@@ -90,7 +90,14 @@ Add the following to your `build.sbt`:
 ```scala
 resolvers += "jitpack" at "https://jitpack.io"
 
-libraryDependencies += "com.github.suprnation.cats-actors" %% "cats-actors" % "2.1.0"
+// JVM
+libraryDependencies += "com.github.cloudmark.cats-actors" %% "cats-actors" % "2.1.0"
+
+// Scala.js
+libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors" % "2.1.0"
+
+// Scala Native
+libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors" % "2.1.0"
 ```
 
 #### Using Maven
@@ -108,12 +115,31 @@ Add the following to your `pom.xml`:
 ```
 
 ```xml
-
+<!-- Scala 2.13 JVM -->
 <dependency>
-    <groupId>com.github.suprnation.cats-actors</groupId>
+    <groupId>com.github.cloudmark.cats-actors</groupId>
     <artifactId>cats-actors_2.13</artifactId>
-    or
+    <version>2.1.0</version>
+</dependency>
+
+<!-- Scala 3 JVM -->
+<dependency>
+    <groupId>com.github.cloudmark.cats-actors</groupId>
     <artifactId>cats-actors_3</artifactId>
+    <version>2.1.0</version>
+</dependency>
+
+<!-- Scala.js (2.13 or 3) -->
+<dependency>
+    <groupId>com.github.cloudmark.cats-actors</groupId>
+    <artifactId>cats-actors_sjs1_2.13</artifactId>  <!-- or cats-actors_sjs1_3 -->
+    <version>2.1.0</version>
+</dependency>
+
+<!-- Scala Native (2.13 or 3) -->
+<dependency>
+    <groupId>com.github.cloudmark.cats-actors</groupId>
+    <artifactId>cats-actors_native0.5_2.13</artifactId>  <!-- or cats-actors_native0.5_3 -->
     <version>2.1.0</version>
 </dependency>
 ```
@@ -128,8 +154,8 @@ Add the following to your `repositories.bzl` and `WORKSPACE` files:
 def load_dependencies():
     maven_install(
         artifacts = [
-            "com.github.suprnation.cats-actors:cats-actors_2_13:2.1.0", // or
-            "com.github.suprnation.cats-actors:cats-actors_3:2.1.0",
+            "com.github.cloudmark.cats-actors:cats-actors_2.13:2.1.0",  # Scala 2.13 JVM
+            "com.github.cloudmark.cats-actors:cats-actors_3:2.1.0",     # Scala 3 JVM
         ],
         repositories = [
             "https://jitpack.io",
@@ -165,7 +191,7 @@ java_library(
     name = "my_library",
     srcs = glob(["src/main/java/**/*.java"]),
     deps = [
-        "@maven//:com_github_suprnation_cats_actors",
+        "@maven//:com_github_cloudmark_cats_actors",
     ],
 )
 ```
