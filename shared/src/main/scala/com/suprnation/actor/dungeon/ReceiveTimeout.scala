@@ -18,8 +18,7 @@ package com.suprnation.actor.dungeon
 
 import cats.Applicative
 import cats.effect.{Clock, Ref, Sync}
-import cats.syntax.flatMap._
-import cats.syntax.functor._
+import cats.syntax.all._
 import com.suprnation.actor.dungeon.ReceiveTimeout.ReceiveTimeoutContext
 
 import scala.concurrent.duration.FiniteDuration
