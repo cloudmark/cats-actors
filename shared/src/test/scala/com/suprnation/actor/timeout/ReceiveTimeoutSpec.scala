@@ -226,4 +226,28 @@ class ReceiveTimeoutSpec extends CatsActorFlatSpec {
       msgs should be(List.empty)
     }
   }
+
+  // A test that was impossible before this change: a long (1 hour) receive timeout. With a real
+  // clock this could only be verified by actually waiting an hour; under TestControl the hour of
+  // IO.sleep is advanced virtually, so it runs in milliseconds and is fully deterministic.
+  it should "fire a 1-hour receive timeout in virtual time (a real-clock test would wait an hour)" in {
+    val program = for {
+      counter <- Ref.of[IO, Int](0)
+      buffer <- Ref.of[IO, List[Int]](List.empty)
+      result <- ActorSystem[IO]("LongVirtualTimeout", (_: Any) => IO.unit).use { system =>
+        for {
+          helloActor <- system.replyingActorOf(
+            constantFlowActor(1 hour, counter, buffer),
+            name = "long-timeout-actor"
+          )
+          _ <- IO.sleep(65 minutes) // > 1 hour of virtual time, advanced instantly
+          result1 <- helloActor ? Get
+        } yield result1
+      }
+    } yield result
+
+    TestControl.executeEmbed(program).map { case (timeouts, _) =>
+      timeouts should be >= 1
+    }
+  }
 }
