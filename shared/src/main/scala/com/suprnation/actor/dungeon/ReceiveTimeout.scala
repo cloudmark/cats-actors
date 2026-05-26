@@ -36,9 +36,10 @@ class ReceiveTimeout[F[_]: Sync, Request](
 ) {
 
   // Use the cats-effect clock instead of System.currentTimeMillis so that receive-timeouts honour
-  // virtual time under cats.effect.testkit.TestControl (deterministic, instant tests). On the real
-  // runtime Clock[F].realTime is the wall clock, so behaviour is unchanged.
-  private def nowMillis: F[Long] = Clock[F].realTime.map(_.toMillis)
+  // virtual time under cats.effect.testkit.TestControl (deterministic, instant tests). We use
+  // `monotonic` (not `realTime`): a timeout measures *elapsed* time, so it must be immune to
+  // wall-clock jumps (NTP, manual clock changes). TestControl advances monotonic with virtual time.
+  private def nowMillis: F[Long] = Clock[F].monotonic.map(_.toMillis)
 
   def setReceiveTimeout(timeout: FiniteDuration, onTimeout: => Request): F[Unit] =
     nowMillis.flatMap { now =>
