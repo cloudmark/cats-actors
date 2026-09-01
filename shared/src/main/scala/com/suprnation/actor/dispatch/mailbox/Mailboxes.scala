@@ -23,7 +23,6 @@ import com.suprnation.actor.ActorRef.ActorRef
 import com.suprnation.actor._
 import com.suprnation.typelevel.actors.syntax._
 
-
 object Mailboxes {
 
   def deadLetterMailbox[F[+_]: Console: Async, Request, Response](
@@ -39,75 +38,84 @@ object Mailboxes {
         )
     }
 
-    new Mailbox[F, SystemMessageEnvelope[F], EnvelopeWithDeferred[F, Request]] {
-      var lastReceived: Long = System.currentTimeMillis()
+    // The idle heuristic below measures elapsed time, so it reads the cats-effect monotonic clock
+    // rather than the wall clock: that keeps it correct across clock jumps and lets it advance with
+    // virtual time under cats.effect.testkit.TestControl.
+    def nowMillis: F[Long] = Clock[F].monotonic.map(_.toMillis)
 
-      @inline override def enqueue(msg: EnvelopeWithDeferred[F, Request]): F[Unit] =
-        Async[F].delay { lastReceived = System.currentTimeMillis() } >> onDeadLetterMailboxEnqueue(
-          msg.envelope
+    nowMillis.map { createdAt =>
+      new Mailbox[F, SystemMessageEnvelope[F], EnvelopeWithDeferred[F, Request]] {
+        var lastReceived: Long = createdAt
+
+        @inline override def enqueue(msg: EnvelopeWithDeferred[F, Request]): F[Unit] =
+          nowMillis.flatMap(now =>
+            Async[F].delay { lastReceived = now }
+          ) >> onDeadLetterMailboxEnqueue(
+            msg.envelope
+          )
+
+        override def dequeue: F[EnvelopeWithDeferred[F, Request]] =
+          Concurrent[F].never[EnvelopeWithDeferred[F, Request]]
+
+        @inline override val deadLockCheck: F[Boolean] = false.pure[F]
+
+        @inline override val hasMessage: F[Boolean] = false.pure[F]
+
+        @inline override val hasSystemMessage: F[Boolean] = false.pure[F]
+
+        @inline override val numberOfMessages: F[Int] = 0.pure[F]
+
+        override def cleanup(
+            onMessage: Either[SystemMessageEnvelope[F], EnvelopeWithDeferred[F, Request]] => F[Unit]
+        ): F[Unit] = Async[F].unit
+
+        @inline override def systemEnqueue(message: SystemMessageEnvelope[F]): F[Unit] =
+          nowMillis.flatMap(now => Async[F].delay { lastReceived = now }) >>
+            actorSystem.deadLetters >>= (_ ! DeadLetter[F](
+            message.invocation,
+            message.sender,
+            receiver
+          ))
+
+        @inline override val tryDequeue: F[Option[EnvelopeWithDeferred[F, Request]]] = None.pure[F]
+
+        @inline override val suspendCount: F[Int] = 0.pure[F]
+
+        @inline override val isSuspended: F[Boolean] = false.pure[F]
+
+        @inline override val isClosed: F[Boolean] = false.pure[F]
+
+        @inline override val resume: F[Unit] =
+          Concurrent[F].raiseError(
+            new IllegalStateException("[Resume] on DeadLetterMailbox should not be called. ")
+          )
+
+        @inline override val suspend: F[Unit] =
+          Concurrent[F].raiseError(
+            new IllegalStateException("[Suspend] on DeadLetterMailbox should not be called. ")
+          )
+
+        @inline override def drainSystemQueue(
+            onMessage: SystemMessageEnvelope[F] => F[Unit]
+        ): F[List[SystemMessageEnvelope[F]]] =
+          List.empty.pure[F]
+
+        @inline override def processMailbox(onSystemMessage: SystemMessageEnvelope[F] => F[Unit])(
+            onUserMessage: EnvelopeWithDeferred[F, Request] => F[Unit]
+        ): F[Unit] =
+          // We never want to process another message - technically there is no queue here so we want to simply
+          // synthetically block until we receive the stop. Soon the shutdown signal will be called anyway which will exit the polling loop.
+          Concurrent[F].never[Unit]
+
+        @inline override val close: F[Unit] = Concurrent[F].raiseError(
+          new IllegalStateException("[Close] on DeadLetterMailbox should not be called. ")
         )
 
-      override def dequeue: F[EnvelopeWithDeferred[F, Request]] =
-        Concurrent[F].never[EnvelopeWithDeferred[F, Request]]
+        @inline override val isIdle: F[Boolean] =
+          nowMillis.map(now => lastReceived + 100 < now)
 
-      @inline override val deadLockCheck: F[Boolean] = false.pure[F]
-
-      @inline override val hasMessage: F[Boolean] = false.pure[F]
-
-      @inline override val hasSystemMessage: F[Boolean] = false.pure[F]
-
-      @inline override val numberOfMessages: F[Int] = 0.pure[F]
-
-      override def cleanup(
-          onMessage: Either[SystemMessageEnvelope[F], EnvelopeWithDeferred[F, Request]] => F[Unit]
-      ): F[Unit] = Async[F].unit
-
-      @inline override def systemEnqueue(message: SystemMessageEnvelope[F]): F[Unit] =
-        Async[F].delay { lastReceived = System.currentTimeMillis() } >>
-          actorSystem.deadLetters >>= (_ ! DeadLetter[F](
-          message.invocation,
-          message.sender,
-          receiver
-        ))
-
-      @inline override val tryDequeue: F[Option[EnvelopeWithDeferred[F, Request]]] = None.pure[F]
-
-      @inline override val suspendCount: F[Int] = 0.pure[F]
-
-      @inline override val isSuspended: F[Boolean] = false.pure[F]
-
-      @inline override val isClosed: F[Boolean] = false.pure[F]
-
-      @inline override val resume: F[Unit] =
-        Concurrent[F].raiseError(
-          new IllegalStateException("[Resume] on DeadLetterMailbox should not be called. ")
-        )
-
-      @inline override val suspend: F[Unit] =
-        Concurrent[F].raiseError(
-          new IllegalStateException("[Suspend] on DeadLetterMailbox should not be called. ")
-        )
-
-      @inline override def drainSystemQueue(
-          onMessage: SystemMessageEnvelope[F] => F[Unit]
-      ): F[List[SystemMessageEnvelope[F]]] =
-        List.empty.pure[F]
-
-      @inline override def processMailbox(onSystemMessage: SystemMessageEnvelope[F] => F[Unit])(
-          onUserMessage: EnvelopeWithDeferred[F, Request] => F[Unit]
-      ): F[Unit] =
-        // We never want to process another message - technically there is no queue here so we want to simply
-        // synthetically block until we receive the stop. Soon the shutdown signal will be called anyway which will exit the polling loop.
-        Concurrent[F].never[Unit]
-
-      @inline override val close: F[Unit] = Concurrent[F].raiseError(
-        new IllegalStateException("[Close] on DeadLetterMailbox should not be called. ")
-      )
-
-      @inline override val isIdle: F[Boolean] =
-        Async[F].delay(lastReceived + 100 < System.currentTimeMillis())
-
-    }.pure[F]
+      }
+    }
   }
 
   def createMailbox[F[+_]: Console: Async, SystemMessage, A](
@@ -182,7 +190,7 @@ object Mailboxes {
           // }
           userQueue
             .tryOffer(msg)
-            .flatMap{ _ =>
+            .flatMap { _ =>
               if (deferred != null) {
                 deferred.complete(()).void
               } else Async[F].unit

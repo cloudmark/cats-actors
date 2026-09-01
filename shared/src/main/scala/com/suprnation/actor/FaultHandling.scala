@@ -257,12 +257,16 @@ case class AllForOneStrategy[F[+_]: Monad: Parallel](
       children: immutable.List[ChildRestartStats[F]]
   ): F[Unit] =
     if (children.nonEmpty) {
-      if (restart && children.forall(_.requestRestartPermission(retriesWindow))) {
-        children.parTraverse_(crs =>
-          restartChild(crs.child, cause, suspendFirst = crs.child != child)
-        )
-      } else
-        children.parTraverse_(c => context.stop(c.child))
+      // The restart window is measured with the cats-effect monotonic clock (via the system's
+      // Temporal instance) so it honours virtual time under TestControl.
+      context.system.temporalF.monotonic.flatMap { now =>
+        if (restart && children.forall(_.requestRestartPermission(retriesWindow, now.toNanos))) {
+          children.parTraverse_(crs =>
+            restartChild(crs.child, cause, suspendFirst = crs.child != child)
+          )
+        } else
+          children.parTraverse_(c => context.stop(c.child))
+      }
     } else {
       Monad[F].unit
     }
@@ -309,10 +313,14 @@ case class OneForOneStrategy[F[+_]: Monad](
       stats: ChildRestartStats[F],
       children: immutable.List[ChildRestartStats[F]]
   ): F[Unit] =
-    if (restart && stats.requestRestartPermission(retriesWindow))
-      restartChild(child, cause, suspendFirst = false)
-    else
-      context.stop(child)
+    // The restart window is measured with the cats-effect monotonic clock (via the system's
+    // Temporal instance) so it honours virtual time under TestControl.
+    context.system.temporalF.monotonic.flatMap { now =>
+      if (restart && stats.requestRestartPermission(retriesWindow, now.toNanos))
+        restartChild(child, cause, suspendFirst = false)
+      else
+        context.stop(child)
+    }
 
 }
 

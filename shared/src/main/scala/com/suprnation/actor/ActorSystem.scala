@@ -77,6 +77,7 @@ object ActorSystem {
       deadLetterActorRef <- Resource.eval(Ref.of[F, Option[ActorRef[F, Any]]](None))
       guardianActorRef <- Resource.eval(Ref.of[F, Option[ActorRef[F, Any]]](None))
       terminated <- Resource.eval(Ref[F].of(false))
+      systemStartTime <- Resource.eval(Clock[F].monotonic)
 
       actorSystem <- Resource.eval(
         Ref[F]
@@ -99,6 +100,8 @@ object ActorSystem {
               override def scheduler: Scheduler[F] = Scheduler[F](schedulerCount)
 
               override val eventStream: Queue[F, Any] = _eventStream
+
+              override val startTimeMillis: Long = systemStartTime.toMillis
 
               override def deadLetters: F[ActorRef[F, Any]] = deadLetterActorRef.get.flatMap {
                 case Some(actorRef) => actorRef.pure[F]
@@ -202,7 +205,11 @@ trait ActorSystem[F[+_]] extends ActorRefProvider[F] {
   /** Create a logger which is thread safe.
     */
   val eventStream: Queue[F, Any]
-  private val startTime: Long = System.currentTimeMillis
+
+  /** Reading of the monotonic clock taken when this system was created, in milliseconds. Used as
+    * the origin for [[uptime]].
+    */
+  val startTimeMillis: Long
 
   def name: String
 
@@ -219,7 +226,11 @@ trait ActorSystem[F[+_]] extends ActorRefProvider[F] {
   //  Main event bus for this actor system, used for example for logging
   // def eventStream: EventStream
 
-  def uptime: Long = (System.currentTimeMillis - startTime) / 1000
+  /** Seconds elapsed since this system was created. Measured with the cats-effect monotonic clock,
+    * so it is immune to wall-clock jumps and advances with virtual time under
+    * cats.effect.testkit.TestControl.
+    */
+  def uptime: F[Long] = temporalF.monotonic.map(now => (now.toMillis - startTimeMillis) / 1000)
 
   def scheduler: Scheduler[F]
 

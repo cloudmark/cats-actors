@@ -35,34 +35,42 @@ final case class ChildRestartStats[F[+_]](
   def uid: Int = child.path.uid
 
   // FIXME How about making ChildRestartStats immutable and then move these methods into the actual supervisor strategies?
-  def requestRestartPermission(retriesWindow: (Option[Int], Option[Int])): Boolean =
+  /** `nowNanos` is supplied by the caller (from `Clock[F].monotonic`) rather than read from
+    * `System.nanoTime` here, so that the restart window honours virtual time under
+    * cats.effect.testkit.TestControl. Taking it as a parameter keeps this class free of any
+    * effect-type constraint.
+    */
+  def requestRestartPermission(
+      retriesWindow: (Option[Int], Option[Int]),
+      nowNanos: Long
+  ): Boolean =
     retriesWindow match {
       case (Some(retries), _) if retries < 1 => false
       case (Some(retries), None) => maxNrOfRetriesCount += 1; maxNrOfRetriesCount <= retries
-      case (x, Some(window))     => retriesInWindowOkay(if (x.isDefined) x.get else 1, window)
-      case (None, _)             => true
+      case (x, Some(window)) =>
+        retriesInWindowOkay(if (x.isDefined) x.get else 1, window, nowNanos)
+      case (None, _) => true
     }
 
-  private def retriesInWindowOkay(retries: Int, window: Int): Boolean = {
+  private def retriesInWindowOkay(retries: Int, window: Int, nowNanos: Long): Boolean = {
     /*
      * Simple window algorithm: window is kept open for a certain time
      * after a restart and if enough restarts happen during this time, it
      * denies. Otherwise window closes and the scheme starts over.
      */
     val retriesDone = maxNrOfRetriesCount + 1
-    val now = System.nanoTime
     val windowStart: Long =
       if (restartTimeWindowStartNanos == 0L) {
-        restartTimeWindowStartNanos = now
-        now
+        restartTimeWindowStartNanos = nowNanos
+        nowNanos
       } else restartTimeWindowStartNanos
-    val insideWindow = (now - windowStart) <= TimeUnit.MILLISECONDS.toNanos(window)
+    val insideWindow = (nowNanos - windowStart) <= TimeUnit.MILLISECONDS.toNanos(window)
     if (insideWindow) {
       maxNrOfRetriesCount = retriesDone
       retriesDone <= retries
     } else {
       maxNrOfRetriesCount = 1
-      restartTimeWindowStartNanos = now
+      restartTimeWindowStartNanos = nowNanos
       true
     }
   }
