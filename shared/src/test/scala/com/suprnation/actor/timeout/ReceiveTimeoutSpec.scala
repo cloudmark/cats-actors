@@ -16,6 +16,7 @@
 
 package com.suprnation.actor.timeout
 
+import cats.effect.testkit.TestControl
 import cats.effect.{IO, Ref}
 import com.suprnation.actor.Actor.ReplyingReceive
 import com.suprnation.actor._
@@ -196,6 +197,57 @@ class ReceiveTimeoutSpec extends CatsActorFlatSpec {
     } yield result1).map { case (r1, b1) =>
       r1 should be(0)
       b1 should be(List(2, 1))
+    }
+  }
+
+  // Regression test for the Clock-based ReceiveTimeout (see ReceiveTimeout.scala). Under
+  // cats.effect.testkit.TestControl the receive timeout must fire in *virtual* time, with no real
+  // waiting: TestControl advances IO.sleep instantly. Before the fix (System.currentTimeMillis),
+  // virtual time advanced but the wall clock did not, so the timeout never fired here.
+  it should "fire a receive timeout under TestControl (virtual time, no real waiting)" in {
+    val program = for {
+      counter <- Ref.of[IO, Int](0)
+      buffer <- Ref.of[IO, List[Int]](List.empty)
+      result <- ActorSystem[IO]("TestControlTimeout", (_: Any) => IO.unit).use { system =>
+        for {
+          helloActor <- system.replyingActorOf(
+            constantFlowActor(1 second, counter, buffer),
+            name = "tc-timeout-actor"
+          )
+          _ <- IO.sleep(2 seconds) // advanced instantly by TestControl, no real wall-clock wait
+          result1 <- helloActor ? Get
+        } yield result1
+      }
+    } yield result
+
+    // executeEmbed runs the whole program in simulated time and fails on non-termination.
+    TestControl.executeEmbed(program).map { case (timeouts, msgs) =>
+      timeouts should be >= 1
+      msgs should be(List.empty)
+    }
+  }
+
+  // A test that was impossible before this change: a long (1 hour) receive timeout. With a real
+  // clock this could only be verified by actually waiting an hour; under TestControl the hour of
+  // IO.sleep is advanced virtually, so it runs in milliseconds and is fully deterministic.
+  it should "fire a 1-hour receive timeout in virtual time (a real-clock test would wait an hour)" in {
+    val program = for {
+      counter <- Ref.of[IO, Int](0)
+      buffer <- Ref.of[IO, List[Int]](List.empty)
+      result <- ActorSystem[IO]("LongVirtualTimeout", (_: Any) => IO.unit).use { system =>
+        for {
+          helloActor <- system.replyingActorOf(
+            constantFlowActor(1 hour, counter, buffer),
+            name = "long-timeout-actor"
+          )
+          _ <- IO.sleep(65 minutes) // > 1 hour of virtual time, advanced instantly
+          result1 <- helloActor ? Get
+        } yield result1
+      }
+    } yield result
+
+    TestControl.executeEmbed(program).map { case (timeouts, _) =>
+      timeouts should be >= 1
     }
   }
 }

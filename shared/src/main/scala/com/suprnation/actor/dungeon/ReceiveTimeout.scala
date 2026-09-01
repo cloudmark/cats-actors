@@ -17,8 +17,8 @@
 package com.suprnation.actor.dungeon
 
 import cats.Applicative
-import cats.effect.{Ref, Sync}
-import cats.syntax.flatMap._
+import cats.effect.{Clock, Ref, Sync}
+import cats.syntax.all._
 import com.suprnation.actor.dungeon.ReceiveTimeout.ReceiveTimeoutContext
 
 import scala.concurrent.duration.FiniteDuration
@@ -35,42 +35,53 @@ class ReceiveTimeout[F[_]: Sync, Request](
     receiveTimeoutContextRef: Ref[F, ReceiveTimeout.ReceiveTimeoutContext[Request]]
 ) {
 
+  // Use the cats-effect clock instead of System.currentTimeMillis so that receive-timeouts honour
+  // virtual time under cats.effect.testkit.TestControl (deterministic, instant tests). We use
+  // `monotonic` (not `realTime`): a timeout measures *elapsed* time, so it must be immune to
+  // wall-clock jumps (NTP, manual clock changes). TestControl advances monotonic with virtual time.
+  private def nowMillis: F[Long] = Clock[F].monotonic.map(_.toMillis)
+
   def setReceiveTimeout(timeout: FiniteDuration, onTimeout: => Request): F[Unit] =
-    receiveTimeoutContextRef.set(
-      ReceiveTimeoutContext[Request](
-        Some(timeout),
-        Some(System.currentTimeMillis()),
-        Some(onTimeout)
+    nowMillis.flatMap { now =>
+      receiveTimeoutContextRef.set(
+        ReceiveTimeoutContext[Request](
+          Some(timeout),
+          Some(now),
+          Some(onTimeout)
+        )
       )
-    )
+    }
 
   def cancelReceiveTimeout: F[Unit] =
     receiveTimeoutContextRef.update(_.copy(receiveTimeout = None, message = None))
 
   def markLastMessageTimestamp: F[Unit] =
-    receiveTimeoutContextRef.update { receiveTimeoutContext =>
-      if (receiveTimeoutContext.receiveTimeout.isDefined) {
-        receiveTimeoutContext.copy(lastMessageTimestamp = Some(System.currentTimeMillis()))
-      } else {
-        receiveTimeoutContext
+    nowMillis.flatMap { now =>
+      receiveTimeoutContextRef.update { receiveTimeoutContext =>
+        if (receiveTimeoutContext.receiveTimeout.isDefined) {
+          receiveTimeoutContext.copy(lastMessageTimestamp = Some(now))
+        } else {
+          receiveTimeoutContext
+        }
       }
     }
 
   def checkTimeout(action: Request => F[Any]): F[Any] =
     receiveTimeoutContextRef.get.flatMap {
       case ReceiveTimeoutContext(Some(timeout), Some(timestamp), Some(message)) =>
-        val timeoutTime: Long = timestamp + timeout.toMillis
-        val currentTime: Long = System.currentTimeMillis()
-        if (timeoutTime <= currentTime) {
-          receiveTimeoutContextRef.set(
-            ReceiveTimeout.ReceiveTimeoutContext(
-              Some(timeout),
-              Some(System.currentTimeMillis()),
-              Some(message)
-            )
-          ) >> action(message)
-        } else {
-          Applicative[F].pure(())
+        nowMillis.flatMap { currentTime =>
+          val timeoutTime: Long = timestamp + timeout.toMillis
+          if (timeoutTime <= currentTime) {
+            receiveTimeoutContextRef.set(
+              ReceiveTimeout.ReceiveTimeoutContext(
+                Some(timeout),
+                Some(currentTime),
+                Some(message)
+              )
+            ) >> action(message)
+          } else {
+            Applicative[F].pure(())
+          }
         }
       case _ => Applicative[F].pure(())
     }
