@@ -10,7 +10,7 @@ val scala3 = "3.3.7"
 val scala2 = "2.13.18"
 
 ThisBuild / organization := "com.suprnation"
-ThisBuild / version := "2.1.0"
+ThisBuild / version := "2.2.0"
 ThisBuild / organizationName := "SuprNation"
 ThisBuild / startYear := Some(2024)
 ThisBuild / licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.txt"))

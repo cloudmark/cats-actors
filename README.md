@@ -91,13 +91,13 @@ Add the following to your `build.sbt`:
 resolvers += "jitpack" at "https://jitpack.io"
 
 // JVM
-libraryDependencies += "com.github.cloudmark.cats-actors" %% "cats-actors" % "2.1.0"
+libraryDependencies += "com.github.cloudmark.cats-actors" %% "cats-actors" % "2.2.0"
 
 // Scala.js
-libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors" % "2.1.0"
+libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors" % "2.2.0"
 
 // Scala Native
-libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors" % "2.1.0"
+libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors" % "2.2.0"
 ```
 
 #### Using Maven
@@ -119,28 +119,28 @@ Add the following to your `pom.xml`:
 <dependency>
     <groupId>com.github.cloudmark.cats-actors</groupId>
     <artifactId>cats-actors_2.13</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 
 <!-- Scala 3 JVM -->
 <dependency>
     <groupId>com.github.cloudmark.cats-actors</groupId>
     <artifactId>cats-actors_3</artifactId>
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 
 <!-- Scala.js (2.13 or 3) -->
 <dependency>
     <groupId>com.github.cloudmark.cats-actors</groupId>
     <artifactId>cats-actors_sjs1_2.13</artifactId>  <!-- or cats-actors_sjs1_3 -->
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 
 <!-- Scala Native (2.13 or 3) -->
 <dependency>
     <groupId>com.github.cloudmark.cats-actors</groupId>
     <artifactId>cats-actors_native0.5_2.13</artifactId>  <!-- or cats-actors_native0.5_3 -->
-    <version>2.1.0</version>
+    <version>2.2.0</version>
 </dependency>
 ```
 
@@ -154,8 +154,8 @@ Add the following to your `repositories.bzl` and `WORKSPACE` files:
 def load_dependencies():
     maven_install(
         artifacts = [
-            "com.github.cloudmark.cats-actors:cats-actors_2.13:2.1.0",  # Scala 2.13 JVM
-            "com.github.cloudmark.cats-actors:cats-actors_3:2.1.0",     # Scala 3 JVM
+            "com.github.cloudmark.cats-actors:cats-actors_2.13:2.2.0",  # Scala 2.13 JVM
+            "com.github.cloudmark.cats-actors:cats-actors_3:2.2.0",     # Scala 3 JVM
         ],
         repositories = [
             "https://jitpack.io",
@@ -2643,7 +2643,7 @@ Cats-Actors ships a companion `cats-actors-testkit` module with helpers for writ
 
 ```scala
 // JVM / Scala.js / Scala Native (use %%% for cross-platform)
-libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors-testkit" % "2.1.0" % Test
+libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors-testkit" % "2.2.0" % Test
 ```
 
 ### Controlled (simulated) time with `ControlledTestKit`
