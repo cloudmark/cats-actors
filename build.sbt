@@ -80,8 +80,33 @@ lazy val catsActorsJVM = catsActors.jvm
 lazy val catsActorsJS = catsActors.js
 lazy val catsActorsNative = catsActors.native
 
+lazy val testkit = crossProject(JSPlatform, JVMPlatform, NativePlatform)
+  .crossType(CrossType.Full)
+  .in(file("testkit"))
+  .dependsOn(catsActors)
+  .settings(commonSettings)
+  .settings(
+    name := "cats-actors-testkit",
+    libraryDependencies ++= Seq(
+      "org.typelevel" %%% "cats-effect-testkit" % "3.7.0",
+      "org.scalatest" %%% "scalatest" % "3.2.18" % Test,
+      "org.typelevel" %%% "cats-effect-testing-scalatest" % "1.8.0" % Test
+    )
+  )
+
+lazy val testkitJVM = testkit.jvm
+lazy val testkitJS = testkit.js
+lazy val testkitNative = testkit.native
+
 lazy val root = (project in file("."))
-  .aggregate(catsActorsJVM, catsActorsJS, catsActorsNative)
+  .aggregate(
+    catsActorsJVM,
+    catsActorsJS,
+    catsActorsNative,
+    testkitJVM,
+    testkitJS,
+    testkitNative
+  )
   .settings(
     name := "cats-actors-root",
     publish / skip := true

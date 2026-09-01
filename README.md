@@ -2637,6 +2637,65 @@ object ShardingApp extends IOApp {
 
 - Initializes the actor system and sends a series of Shard messages to demonstrate actor creation and message processing.
 
+## Testing Actors
+
+Cats-Actors ships a companion `cats-actors-testkit` module with helpers for writing deterministic actor tests. Add it to your build (test scope):
+
+```scala
+// JVM / Scala.js / Scala Native (use %%% for cross-platform)
+libraryDependencies += "com.github.cloudmark.cats-actors" %%% "cats-actors-testkit" % "2.1.0" % Test
+```
+
+### Controlled (simulated) time with `ControlledTestKit`
+
+`ControlledTestKit` runs your test logic inside Cats Effect's `TestControl`, so **simulated time is advanced for you** — scheduled work and timeouts resolve instantly instead of forcing your suite to sleep in real time. Mix the trait into your spec and wrap the test body in `withActorSystemIO`, which provisions an `ActorSystem[IO]`, ticks the simulated clock (90 seconds by default), and yields the result.
+
+The returned `IO` simply *succeeds with your value* or *fails the effect* if the test errors, is canceled, or does not finish within the time window (the latter two surface as a `ControlledTestException`). It is test-framework agnostic — any runner that can execute an `IO` works. To inspect a failure instead of propagating it, call `.attempt` on the result.
+
+```scala
+import cats.effect.{IO, Ref}
+import com.suprnation.actor.Actor.{Actor, Receive}
+import com.suprnation.actor.test.ControlledTestKit
+import cats.effect.testing.scalatest.AsyncIOSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AsyncWordSpec
+
+import scala.concurrent.duration._
+
+class SchedulerSpec
+    extends AsyncWordSpec
+    with AsyncIOSpec
+    with Matchers
+    with ControlledTestKit {
+
+  "An actor scheduling delayed work" should {
+    "observe the task firing without waiting in real time" in
+      withActorSystemIO { system =>
+        for {
+          fired <- Ref[IO].of(false)
+          _ <- system.actorOf(
+            new Actor[IO, String] {
+              override def preStart: IO[Unit] =
+                // scheduleOnce_ fires in the background (it `.start`s a fiber);
+                // scheduleOnce would instead block preStart for the full delay.
+                context.system.scheduler.scheduleOnce_(5.seconds)(fired.set(true)).void
+
+              override def receive: Receive[IO, String] = { case _ => IO.unit }
+            },
+            "scheduler-actor"
+          )
+          // Written as a 6s wait, but ControlledTestKit advances simulated
+          // time, so the test still completes instantly.
+          _ <- IO.sleep(6.seconds)
+          result <- fired.get
+        } yield result shouldBe true
+      }
+  }
+}
+```
+
+`ControlledTestKit` extends `TestKit`, so all the message-assertion helpers (`expectMsgs`, `expectMsgType`, `awaitTerminated`, test probes, …) are available alongside the controlled-time runner.
+
 ## Looking for Another Example?
 
 If you need another example or have a specific scenario in mind, please open an issue on our GitHub repository. We'll

@@ -107,7 +107,11 @@ trait TestKit {
         timeout,
         100.millis,
         s"expecting messages: $messages"
-      )
+      ).onError { case e =>
+        actor.messageBuffer.flatMap(q =>
+          Console[F].println(s"Expected message not found! Queue state: $q")
+        )
+      }
     } yield ()
 
   def expectMsgPF[F[+_]: Async: Console](actor: ActorRef[F, ?], timeout: FiniteDuration = 1.minute)(
@@ -125,6 +129,21 @@ trait TestKit {
       _ <- actor.messageBuffer.map { case (_, messages) => messages.collectFirst(pF) }
     } yield ()
 
+  /** Asserts that the actor receives exactly one further message, and that it is of type `T`.
+    *
+    * '''WARNING: this method can cause test flakiness if the expected message arrives quickly!!!'''
+    * Use it only when you know there is enough delay between the test calling this method and the
+    * message being added to the queue.
+    *
+    * ''Root cause (the `splitAt`):'' the buffer is snapshotted as `startQ` on entry, and the wait
+    * condition `splitAt(startQ._2.length)`s the current buffer, succeeding only when the remainder is
+    * '''exactly one''' new element. If the message is already in `startQ` (it arrived "quickly", before
+    * the snapshot), the remainder is empty and the assertion can never pass.
+    *
+    * The assertion is only reliable when delivery is guaranteed to occur strictly after this call.
+    * For a snapshot/position-independent check prefer [[expectMsgTypeCountN]], which counts messages
+    * of the type and is not sensitive to when they arrive relative to the call.
+    */
   def expectMsgType[F[+_]: Async: Console, T: ClassTag](
       actor: ActorRef[F, ?],
       timeout: FiniteDuration = 1.minute
@@ -133,12 +152,34 @@ trait TestKit {
       actor,
       timeout,
       startQ =>
-        actor.messageBuffer.map {
-          _._2.splitAt(startQ._2.length).toList match {
+        actor.messageBuffer.map { currentQ =>
+          currentQ._2.splitAt(startQ._2.length).toList match {
             case List(startQ._2, Seq(m)) if classTag[T].runtimeClass.isInstance(m) => true
             case _                                                                 => false
           }
         },
+      s"of type: ${classTag[T].toString}"
+    )
+
+  /** Checks if the actor has received a message of the given type
+    */
+  def expectMsgTypeSingle[F[+_]: Async: Console, T: ClassTag](
+      actor: ActorRef[F, ?],
+      timeout: FiniteDuration = 1.minute
+  ): F[Unit] =
+    expectMsgTypeCountN(actor, 1, timeout)
+
+  /** Checks if the actor has received N messages of the given type
+    */
+  def expectMsgTypeCountN[F[+_]: Async: Console, T: ClassTag](
+      actor: ActorRef[F, ?],
+      count: Int,
+      timeout: FiniteDuration = 1.minute
+  ): F[Unit] =
+    expectMsgInternal(
+      actor,
+      timeout,
+      _ => actor.messageBuffer.map(_._2.count(classTag[T].runtimeClass.isInstance) == count),
       s"of type: ${classTag[T].toString}"
     )
 
