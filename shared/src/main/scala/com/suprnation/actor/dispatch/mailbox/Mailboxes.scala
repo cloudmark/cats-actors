@@ -205,7 +205,10 @@ object Mailboxes {
         @inline override val tryDequeue: F[Option[A]] = userQueue.tryTake
         // tryDequeue(userQueue)
 
-        @inline def deadLockCheck: F[Boolean] = true.pure[F]
+        // The park in `processMailbox` is lock free, so an enqueue can race it and leave a message
+        // queued behind a parked loop. The periodic Ping repairs that, and is only needed when
+        // something is queued.
+        @inline def deadLockCheck: F[Boolean] = hasSystemMessage ||| hasMessage
 
         @inline override val hasMessage: F[Boolean] = userQueue.size.map(_ > 0)
         // Async[F].delay {

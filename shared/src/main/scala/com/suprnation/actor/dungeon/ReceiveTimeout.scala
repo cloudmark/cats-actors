@@ -52,6 +52,12 @@ class ReceiveTimeout[F[_]: Sync, Request](
       )
     }
 
+  def isArmed: F[Boolean] =
+    receiveTimeoutContextRef.get.map {
+      case ReceiveTimeoutContext(Some(_), Some(_), Some(_)) => true
+      case _                                                => false
+    }
+
   def cancelReceiveTimeout: F[Unit] =
     receiveTimeoutContextRef.update(_.copy(receiveTimeout = None, message = None))
 

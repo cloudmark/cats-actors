@@ -184,6 +184,11 @@ object ActorCell {
 
       private val pingMessage = Envelope.system(SystemMessage.Ping[F]())
 
+      // The Ping wakes a mailbox that parked with a message queued, and drives `checkTimeout`.
+      // An idle actor with no receive timeout armed needs neither.
+      private val pingRequired: F[Boolean] =
+        dispatchContext.mailbox.deadLockCheck ||| receiveTimeout.isArmed
+
       override def start: F[Fiber[F, Throwable, Unit]] =
         supervisor
           .supervise(
@@ -194,7 +199,7 @@ object ActorCell {
               )
               // If the system is suspended, we do not ping.
               .race(
-                (Temporal[F].sleep(1 second) >> dispatchContext.mailbox.deadLockCheck
+                (Temporal[F].sleep(1 second) >> pingRequired
                   .ifM(sendSystemMessage(pingMessage), Async[F].unit)).foreverM
               )
               .void
