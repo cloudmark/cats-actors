@@ -28,6 +28,7 @@ object MailboxQueues {
         def tryTake: F[Option[A]]                  = queue.tryTake
         def take: F[A]                             = queue.take
         def size: F[Int]                           = queue.size
+        def isEmpty: F[Boolean]                    = queue.size.map(_ == 0)
         def tryTakeN(max: Option[Int]): F[List[A]] = queue.tryTakeN(max)
       }
     }
