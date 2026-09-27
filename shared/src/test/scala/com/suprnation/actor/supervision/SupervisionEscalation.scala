@@ -25,6 +25,7 @@ import com.suprnation.actor._
 import com.suprnation.actor.debug.TrackingActor
 import com.suprnation.actor.supervision.SupervisionEscalation.{
   ChildActor,
+  ErrorThrowingActor,
   GrandParent,
   ParentActor,
   ThrowingTantrumActor
@@ -109,6 +110,12 @@ object SupervisionEscalation {
 
     override def preResume: IO[Unit] = IO.println("Resuming")
   }
+
+  case class ErrorThrowingActor() extends Actor[IO, String] {
+    override def receive: Receive[IO, String] = { case _ =>
+      IO.raiseError(new Error("not an Exception"))
+    }
+  }
 }
 
 class SupervisionEscalation extends CatsActorFlatSpec {
@@ -143,6 +150,16 @@ class SupervisionEscalation extends CatsActorFlatSpec {
         } yield ()
       }
     } yield 1 should be(1)
+  }
+
+  it should "kill the actor system when a top-level actor fails with an Error" in {
+    ActorSystem[IO]("supervision-system").use { system =>
+      for {
+        actor <- system.actorOf[String](ErrorThrowingActor())
+        _ <- actor ! "fail"
+        terminated <- system.waitForTermination.as(true).timeoutTo(5 seconds, IO.pure(false))
+      } yield terminated should be(true)
+    }
   }
 
   it should "kill the actor system and all actors when system is shutting down" in {
