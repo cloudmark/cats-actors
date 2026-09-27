@@ -200,7 +200,7 @@ trait FaultHandling[F[+_], Request, Response] {
     _ <- unwatchWatchedActor
 
     // stop all children which will turn childrenRefs into TerminatingChildrenContainer (if there are any)
-    _ <- children.flatMap(children => children.parTraverse_(_.stop))
+    _ <- children.flatMap(children => children.parTraverse_(stop(_)))
 
     terminatedAlready <- dispatchContext.mailbox.isClosed
 
