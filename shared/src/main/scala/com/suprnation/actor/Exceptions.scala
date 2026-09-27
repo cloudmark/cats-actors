@@ -128,6 +128,12 @@ final case class DeathPactException[F[+_]](dead: NoSendActorRef[F])
     extends AkkaException("Monitored actor [" + dead + "] terminated")
     with NoStackTrace
 
+/** Fails an ask whose recipient terminated before handling the message. The message itself goes to dead letters.
+  */
+final case class AskRecipientTerminatedException[F[+_]](recipient: NoSendActorRef[F])
+    extends AkkaException("Ask recipient [" + recipient + "] terminated before handling the ask")
+    with NoStackTrace
+
 /** This message is published to the EventStream whenever an Actor receives a message it doesn't understand
   */
 @SerialVersionUID(1L)
