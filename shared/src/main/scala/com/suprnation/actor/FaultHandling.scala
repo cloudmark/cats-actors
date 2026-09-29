@@ -347,6 +347,13 @@ case class TerminateActorSystem[F[+_]: Concurrent: Parallel](
     Concurrent[F].pure(cause.get.printStackTrace()) >> system.terminate(cause)
 
   /** Returns the Decider that is associated with this SupervisionStrategy. The Decider is invoked by the default implementation of `handleFailure` to obtain the Directive to be applied.
+    *
+    * The user guardian has no parent to escalate to, so this decider covers every `Throwable`.
+    * `handleFailure` passes both `Restart` and `Stop` to `processFailure`, which terminates the
+    * system.
     */
-  override def decider: Decider = defaultDecider
+  override def decider: Decider =
+    defaultDecider.orElse[Throwable, SupervisorStrategy.Directive] { case _ =>
+      SupervisorStrategy.Stop
+    }
 }
