@@ -242,4 +242,20 @@ class MailboxSuite extends CatsActorFlatSpec {
     } yield result should be(List(1, 2, 3, 4, 5))
   }
 
+  it should "ask for a ping only while a message is queued" in {
+    for {
+      mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
+      empty <- mailbox.deadLockCheck
+      _ <- mailbox.enqueue(1 -> None)
+      withUserMessage <- mailbox.deadLockCheck
+      _ <- mailbox.tryDequeue
+      _ <- mailbox.systemEnqueue(SystemMessage.Ping[IO]())
+      withSystemMessage <- mailbox.deadLockCheck
+    } yield {
+      empty should be(false)
+      withUserMessage should be(true)
+      withSystemMessage should be(true)
+    }
+  }
+
 }
