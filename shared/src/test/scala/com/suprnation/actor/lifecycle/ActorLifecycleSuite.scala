@@ -22,6 +22,8 @@ import com.suprnation.actor._
 import com.suprnation.spec.CatsActorFlatSpec
 import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
 
+import scala.concurrent.duration._
+
 class ActorLifecycleSuite extends CatsActorFlatSpec {
   trait ActorLifecycleRequests
   case object GetRef extends ActorLifecycleRequests
@@ -59,6 +61,26 @@ class ActorLifecycleSuite extends CatsActorFlatSpec {
         _ <- actorSystem.waitForTermination
         result1 <- ref.get
       } yield result1 should be(1)
+    }
+  }
+
+  it should "run a child's postStop before its parent's" in {
+    ActorSystem[IO]("Actor Test", (_: Any) => IO.unit).use { actorSystem =>
+      for {
+        stopped <- Ref.of[IO, List[String]](List.empty)
+        parent <- actorSystem.actorOf[Any](new Actor[IO, Any] {
+          override def preStart: IO[Unit] =
+            context
+              .actorOf[Any](new Actor[IO, Any] {
+                override def postStop: IO[Unit] =
+                  IO.sleep(100.millis) >> stopped.update(_ :+ "child")
+              })
+              .void
+          override def postStop: IO[Unit] = stopped.update(_ :+ "parent")
+        })
+        _ <- parent ! PoisonPill
+        order <- (IO.sleep(10.millis) >> stopped.get).iterateUntil(_.size == 2).timeout(5.seconds)
+      } yield order should be(List("child", "parent"))
     }
   }
 
