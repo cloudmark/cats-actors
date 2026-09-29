@@ -86,6 +86,22 @@ class MailboxSuite extends CatsActorFlatSpec {
     } yield result should be(List(1, 2))
   }
 
+  it should "not lose a message enqueued while the mailbox parks" in {
+    for {
+      buffer <- Ref.of[IO, List[Any]](List.empty)
+      mailbox <- Mailboxes.createMailbox[IO, SystemMessage[IO], AnyWithDeferred]("mailbox-test")
+      f <- mailbox.processMailbox(onSystemReceive(buffer))(onUserReceive(buffer)).foreverM.start
+      // Each message is enqueued as the loop finishes the previous one and heads for its park,
+      // the window in which a wakeup can be lost. A bare mailbox has no Ping to repair one.
+      _ <- (1 to 2000).toList
+        .traverse_ { i =>
+          Deferred[IO, Any].flatMap(d => mailbox.enqueue(i -> d.some) >> d.get.timeout(5.seconds))
+        }
+        .guarantee(mailbox.close >> f.cancel)
+      result <- buffer.get
+    } yield result should be((1 to 2000).toList)
+  }
+
   it should "allow suspension of messages" in {
     for {
       buffer <- Ref.of[IO, List[Any]](List.empty)

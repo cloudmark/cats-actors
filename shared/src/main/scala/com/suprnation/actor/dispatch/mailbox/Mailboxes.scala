@@ -131,8 +131,10 @@ object Mailboxes {
         var isShutDown: Boolean = false
         // val userQueue: util.Queue[A] = new LinkedTransferQueue[A]()
         // val systemQueue: util.Queue[SystemMessage] = new LinkedTransferQueue[SystemMessage]()
-        var deferred: Deferred[F, Unit] = null
-        var systemDeferred: Deferred[F, Unit] = null
+        // Volatile: the loop publishes its park target and then re-reads the queues, while an
+        // enqueue offers and then reads the park target. One of the two always sees the other.
+        @volatile var deferred: Deferred[F, Unit] = null
+        @volatile var systemDeferred: Deferred[F, Unit] = null
         var _flag: Option[Deferred[F, Unit]] = None
 
         var suspended: Int = 0
@@ -290,9 +292,17 @@ object Mailboxes {
                     // Here we will use the lock because
                     // 1. This is a special use case when the system is suspended
                     // 2. System message should not have a high throughput requirement.
-                    lock.permit.use { _ =>
-                      Deferred[F, Unit].map { d => systemDeferred = d; deferred = null }
-                    } >> Async[F].race(systemDeferred.get, f.get).void
+                    lock.permit
+                      .use { _ =>
+                        Deferred[F, Unit].map { d => systemDeferred = d; deferred = null; d }
+                      }
+                      .flatMap { d =>
+                        // A system message offered before we installed `d` has already been
+                        // signalled to the previous deferred; re-check before waiting.
+                        systemQueue.size.flatMap { n =>
+                          if (n > 0) Async[F].unit else Async[F].race(d.get, f.get).void
+                        }
+                      }
 
                   case None =>
                     // tryDequeue(userQueue).flatMap(_.traverse(uM => processBlock(onUserMessage(uM))))
@@ -304,9 +314,15 @@ object Mailboxes {
             _ <- Sync[F]
               // .whenA(systemQueue.isEmpty && userQueue.isEmpty)(
               .whenA(systemQueueIsEmpty && userQueueIsEmpty)(
-                // Note that here we run lock free, this is because we are guaranteed to receive the ping in this scenario
-                // so even though we might have missed this update we will get it in the next ping.
-                Deferred[F, Unit].map(d => deferred = d) >> deferred.get
+                // Lock free: publish the park target first, then re-check the queues. An enqueue
+                // offers first and then completes whatever `deferred` it reads, so a message that
+                // raced the check above is either seen here or completes `d`.
+                Deferred[F, Unit].flatMap { d =>
+                  Sync[F].delay { deferred = d } >>
+                    (systemQueue.size, userQueue.size).tupled.flatMap { case (sys, user) =>
+                      if (sys == 0 && user == 0) d.get else Sync[F].unit
+                    }
+                }
               )
           } yield ()
 
