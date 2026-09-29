@@ -21,12 +21,13 @@ import cats.effect.implicits._
 import cats.effect.testing.scalatest.AsyncIOSpec
 import cats.implicits._
 import com.suprnation.actor.Actor.{Actor, ReplyingReceive}
-import com.suprnation.actor.{ActorSystem, ReplyingActor}
+import com.suprnation.actor.{ActorSystem, AskRecipientTerminatedException, ReplyingActor}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.Assertions
 import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 import com.suprnation.spec.CatsActorFlatSpec
+import com.suprnation.typelevel.actors.syntax.ActorSystemDebugOps
 
 object AskSpec {
   sealed trait Input
@@ -68,6 +69,46 @@ class AskSpec extends CatsActorFlatSpec with Assertions {
         }
     }
 
+  }
+
+  it should "fail an ask to an actor that has terminated" in {
+    ActorSystem[IO]("AskSpec")
+      .use { system =>
+        for {
+          actor <- system.replyingActorOf(askReceiver)
+          _ <- actor.stop
+          _ <- system.waitForIdle()
+          response <- (actor ? Hi(1)).timeout(5.seconds).attempt
+        } yield response.left.map(_.getClass) shouldBe Left(
+          classOf[AskRecipientTerminatedException[IO]]
+        )
+      }
+  }
+
+  it should "fail an ask that is still queued when its recipient terminates" in {
+    ActorSystem[IO]("AskSpec")
+      .use { system =>
+        for {
+          started <- Deferred[IO, Unit]
+          release <- Deferred[IO, Unit]
+          actor <- system.replyingActorOf(new ReplyingActor[IO, String, String] {
+            override def receive: ReplyingReceive[IO, String, String] = {
+              case "block" => started.complete(()) >> release.get.as("unblocked")
+              case other   => other.pure[IO]
+            }
+          })
+          blocked <- (actor ? "block").start
+          _ <- started.get
+          queued <- (actor ? "queued").timeout(5.seconds).attempt.start
+          _ <- IO.sleep(100.millis)
+          _ <- actor.stop
+          _ <- release.complete(())
+          _ <- blocked.join
+          response <- queued.joinWithNever
+        } yield response.left.map(_.getClass) shouldBe Left(
+          classOf[AskRecipientTerminatedException[IO]]
+        )
+      }
   }
 
   it should "receive the response even if the actor system is terminated" in {

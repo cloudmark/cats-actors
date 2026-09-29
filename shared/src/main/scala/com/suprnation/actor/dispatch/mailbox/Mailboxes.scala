@@ -52,6 +52,8 @@ object Mailboxes {
             Async[F].delay { lastReceived = now }
           ) >> onDeadLetterMailboxEnqueue(
             msg.envelope
+          ) >> msg.deferred.traverse_(
+            _.complete(Left(AskRecipientTerminatedException(receiver.actorRef)))
           )
 
         override def dequeue: F[EnvelopeWithDeferred[F, Request]] =
