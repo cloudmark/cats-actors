@@ -207,15 +207,9 @@ object Mailboxes {
 
         @inline def deadLockCheck: F[Boolean] = true.pure[F]
 
-        @inline override val hasMessage: F[Boolean] = userQueue.size.map(_ > 0)
-        // Async[F].delay {
-        //   !userQueue.isEmpty
-        // }
+        @inline override val hasMessage: F[Boolean] = userQueue.isEmpty.map(!_)
 
-        @inline override val hasSystemMessage: F[Boolean] = systemQueue.size.map(_ > 0)
-        // Async[F].delay {
-        //   !systemQueue.isEmpty
-        // }
+        @inline override val hasSystemMessage: F[Boolean] = systemQueue.isEmpty.map(!_)
 
         @inline override val numberOfMessages: F[Int] = userQueue.size
         // Async[F].delay {
@@ -299,10 +293,9 @@ object Mailboxes {
                     userQueue.tryTake.flatMap(_.traverse(uM => processBlock(onUserMessage(uM))))
                 }
               }
-            systemQueueIsEmpty <- systemQueue.size.map(_ == 0)
-            userQueueIsEmpty <- userQueue.size.map(_ == 0)
+            systemQueueIsEmpty <- systemQueue.isEmpty
+            userQueueIsEmpty <- userQueue.isEmpty
             _ <- Sync[F]
-              // .whenA(systemQueue.isEmpty && userQueue.isEmpty)(
               .whenA(systemQueueIsEmpty && userQueueIsEmpty)(
                 // Note that here we run lock free, this is because we are guaranteed to receive the ping in this scenario
                 // so even though we might have missed this update we will get it in the next ping.

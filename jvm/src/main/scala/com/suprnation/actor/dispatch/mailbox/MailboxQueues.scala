@@ -30,6 +30,7 @@ object MailboxQueues {
         def tryTake: F[Option[A]]      = Async[F].delay(Option(queue.poll()))
         def take: F[A]                 = Async[F].blocking(queue.take())
         def size: F[Int]               = Async[F].delay(queue.size())
+        def isEmpty: F[Boolean]        = Async[F].delay(queue.isEmpty)
         def tryTakeN(max: Option[Int]): F[List[A]] =
           Async[F].delay {
             val buf = new java.util.ArrayList[A]()
